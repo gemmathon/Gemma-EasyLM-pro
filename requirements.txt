@@ -81,7 +81,7 @@ tokenizers==0.15.2
 toolz==0.12.1
 torch==2.2.0
 tqdm==4.66.2
-transformers==4.38.1
+transformers==4.38.2
 typing_extensions==4.9.0
 urllib3==2.2.1
 wandb==0.16.3

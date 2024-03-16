@@ -35,8 +35,6 @@ python -m EasyLM.models.gemma.gemma_train \
 --save_milestone_freq=10000 \
 --train_dataset.type='huggingface' \
 --train_dataset.text_processor.fields='text' \
---train_dataset.type='huggingface' \
---train_dataset.text_processor.fields='text' \
 --train_dataset.huggingface_dataset.path='c4' \
 --train_dataset.huggingface_dataset.name='ko' \
 --train_dataset.huggingface_dataset.seq_length=8192 \

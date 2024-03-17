@@ -33,9 +33,9 @@ class GemmaConfig(PretrainedConfig):
     r"""
     This is the configuration class to store the configuration of a [`GemmaModel`]. It is used to instantiate an Gemma
     model according to the specified arguments, defining the model architecture. Instantiating a configuration with the
-    defaults will yield a similar configuration to that of the Gemma-7B.
+    defaults will yield a similar configuration to that of the Gemma-2B.
 
-    e.g. [google/gemma-7b](https://huggingface.co/google/gemma-7b)
+    e.g. [google/gemma-2b](https://huggingface.co/google/gemma-2b)
 
     Configuration objects inherit from [`PretrainedConfig`] and can be used to control the model outputs. Read the
     documentation from [`PretrainedConfig`] for more information.
@@ -92,10 +92,10 @@ class GemmaConfig(PretrainedConfig):
     ```python
     >>> from transformers import GemmaModel, GemmaConfig
 
-    >>> # Initializing a Gemma gemma-7b style configuration
+    >>> # Initializing a Gemma gemma-2b style configuration
     >>> configuration = GemmaConfig()
 
-    >>> # Initializing a model from the gemma-7b style configuration
+    >>> # Initializing a model from the gemma-2b style configuration
     >>> model = GemmaModel(configuration)
 
     >>> # Accessing the model configuration
@@ -108,11 +108,11 @@ class GemmaConfig(PretrainedConfig):
     def __init__(
         self,
         vocab_size=256000,
-        hidden_size=3072,
-        intermediate_size=24576,
-        num_hidden_layers=28,
-        num_attention_heads=16,
-        num_key_value_heads=16,
+        hidden_size=2048,
+        intermediate_size=16384,
+        num_hidden_layers=18,
+        num_attention_heads=8,
+        num_key_value_heads=1,
         head_dim=256,
         hidden_act="gelu",
         max_position_embeddings=8192,

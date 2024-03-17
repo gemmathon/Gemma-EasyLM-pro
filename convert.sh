@@ -1,4 +1,4 @@
-OUTPUT='gemma-ko-7b-dev'
+OUTPUT='gemma-ko-2b-dev'
 CKPT_PATH='../streaming_train_state_140000'
 
 rm -rf $OUTPUT

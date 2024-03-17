@@ -69,7 +69,7 @@ def main(argv):
     set_random_seed(FLAGS.seed)
 
     # tokenizer = GemmaConfig.get_tokenizer(FLAGS.tokenizer)
-    tokenizer = AutoTokenizer.from_pretrained("google/gemma-7b")
+    tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
     dataset = DatasetFactory.load_dataset(FLAGS.train_dataset, tokenizer)
     if FLAGS.load_dataset_state != "":
         dataset.load_state_dict(mlxu.load_pickle(FLAGS.load_dataset_state))
@@ -86,7 +86,7 @@ def main(argv):
     #     gemma_config = GemmaConfig.load_config(FLAGS.load_gemma_config)
     # else:
     #     gemma_config = GemmaConfig(**FLAGS.gemma)
-    gemma_config = GemmaConfig.from_pretrained("google/gemma-7b")
+    gemma_config = GemmaConfig.from_pretrained("google/gemma-2b")
 
     # if FLAGS.update_gemma_config != "":
     #     gemma_config.update(dict(eval(FLAGS.update_gemma_config)))

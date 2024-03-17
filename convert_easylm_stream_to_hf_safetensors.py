@@ -10,7 +10,7 @@ from transformers import FlaxGemmaForCausalLM
 
 _, param = StreamingCheckpointer.load_trainstate_checkpoint(load_from=f'trainstate_params::{ckpt_path}')
 
-gemma_config = GemmaConfig.from_pretrained("google/gemma-7b")
+gemma_config = GemmaConfig.from_pretrained("google/gemma-2b")
 
 # EasyLM Gemma
 # model = FlaxGemmaForCausalLMModule(
@@ -42,9 +42,9 @@ hf_model = GemmaForCausalLM.from_pretrained('./flax-gemma-ko-8b/',
                                             from_flax=True)
 hf_model.to(torch.bfloat16)
 hf_model.config.torch_dtype = torch.bfloat16
-hf_model.save_pretrained('./gemma-ko-7b-dev', max_shard_size='4GB')
+hf_model.save_pretrained('./gemma-ko-2b-dev', max_shard_size='4GB')
 
 from transformers import AutoTokenizer
 
-tokenizer = AutoTokenizer.from_pretrained("google/gemma-7b")
-tokenizer.save_pretrained('./gemma-ko-7b-dev')
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
+tokenizer.save_pretrained('./gemma-ko-2b-dev')

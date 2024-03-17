@@ -32,13 +32,13 @@ auto_model = FlaxGemmaForCausalLM(config=gemma_config) # HF Gemma
 auto_model.params = params['params']
 
 # 단일 파일로 로드해야 함
-auto_model.save_pretrained('./flax-gemma-ko-8b', max_shard_size='999GB')
+auto_model.save_pretrained('./flax-gemma-ko-2b', max_shard_size='999GB')
 
 # HF Flax --> HF SafeTensors
 import torch
 from transformers import GemmaForCausalLM
 
-hf_model = GemmaForCausalLM.from_pretrained('./flax-gemma-ko-8b/', 
+hf_model = GemmaForCausalLM.from_pretrained('./flax-gemma-ko-2b/', 
                                             from_flax=True)
 hf_model.to(torch.bfloat16)
 hf_model.config.torch_dtype = torch.bfloat16

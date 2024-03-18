@@ -30,6 +30,7 @@ with mesh:
 
 auto_model = FlaxGemmaForCausalLM(config=gemma_config) # HF Gemma
 auto_model.params = params['params']
+auto_model.params = auto_model.to_fp32(auto_model.params)
 
 # 단일 파일로 로드해야 함
 auto_model.save_pretrained('./flax-gemma-ko-2b', max_shard_size='999GB')

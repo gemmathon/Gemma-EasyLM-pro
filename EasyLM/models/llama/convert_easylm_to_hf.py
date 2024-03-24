@@ -218,33 +218,26 @@ def write_tokenizer(tokenizer_path, input_tokenizer_path):
     write_json(
         {
             "bos_token": {
-                "content": "<bos>",
+                "content": "<s>",
                 "lstrip": False,
-                "normalized": False,
+                "normalized": True,
                 "rstrip": False,
                 "single_word": False
             },
             "eos_token": {
-                "content": "<eos>",
+                "content": "</s>",
                 "lstrip": False,
-                "normalized": False,
-                "rstrip": False,
-                "single_word": False
-            },
-            "pad_token": {
-                "content": "<pad>",
-                "lstrip": False,
-                "normalized": False,
+                "normalized": True,
                 "rstrip": False,
                 "single_word": False
             },
             "unk_token": {
                 "content": "<unk>",
                 "lstrip": False,
-                "normalized": False,
+                "normalized": True,
                 "rstrip": False,
                 "single_word": False
-            }
+            },
         },
         os.path.join(tokenizer_path, "special_tokens_map.json")
     )
@@ -252,51 +245,35 @@ def write_tokenizer(tokenizer_path, input_tokenizer_path):
         {
             "add_bos_token": True,
             "add_eos_token": False,
-            "added_tokens_decoder": {
-                "0": {
-                    "content": "<pad>",
-                    "lstrip": False,
-                    "normalized": False,
-                    "rstrip": False,
-                    "single_word": False,
-                    "special": True
-                },
-                "1": {
-                    "content": "<eos>",
-                    "lstrip": False,
-                    "normalized": False,
-                    "rstrip": False,
-                    "single_word": False,
-                    "special": True
-                },
-                "2": {
-                    "content": "<bos>",
-                    "lstrip": False,
-                    "normalized": False,
-                    "rstrip": False,
-                    "single_word": False,
-                    "special": True
-                },
-                "3": {
-                    "content": "<unk>",
-                    "lstrip": False,
-                    "normalized": False,
-                    "rstrip": False,
-                    "single_word": False,
-                    "special": True
-                }
-            },
-            "bos_token": "<bos>",
-            "clean_up_tokenization_spaces": False,
-            "eos_token": "<eos>",
-            "legacy": None,
-            "model_max_length": 1000000000000000019884624838656,
-            "pad_token": "<pad>",
+            "model_max_length": 2048,
+            "pad_token": None,
             "sp_model_kwargs": {},
-            "spaces_between_special_tokens": False,
-            "tokenizer_class": "GemmaTokenizer",
-            "unk_token": "<unk>",
-            "use_default_system_prompt": False
+            "tokenizer_class": "LlamaTokenizer",
+            "clean_up_tokenization_spaces": False,
+            "bos_token": {
+                "__type": "AddedToken",
+                "content": "<s>",
+                "lstrip": False,
+                "normalized": True,
+                "rstrip": False,
+                "single_word": False
+            },
+            "eos_token": {
+                "__type": "AddedToken",
+                "content": "</s>",
+                "lstrip": False,
+                "normalized": True,
+                "rstrip": False,
+                "single_word": False
+            },
+            "unk_token": {
+                "__type": "AddedToken",
+                "content": "<unk>",
+                "lstrip": False,
+                "normalized": True,
+                "rstrip": False,
+                "single_word": False
+            },
         },
         os.path.join(tokenizer_path, "tokenizer_config.json"),
     )

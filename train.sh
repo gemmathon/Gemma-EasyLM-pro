@@ -1,4 +1,4 @@
-export TPU_NAME='gemma-ko-2b-pro'
+export TPU_NAME='tpu-vm-base'
 export TPU_USER='yunjiyeong0106'
 export ZONE='us-central1-b'
 

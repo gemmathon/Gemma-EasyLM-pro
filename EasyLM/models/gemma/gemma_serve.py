@@ -67,17 +67,17 @@ def main(argv):
     #     FLAGS.tokenizer, truncation_side="right", padding_side="right"
     # )
     prefix_tokenizer = AutoTokenizer.from_pretrained(
-        "google/gemma-2b",
+        "gemmathon/gemma-2b-pro",
         truncation_side="left",
         padding_side="left",
     )
     tokenizer = AutoTokenizer.from_pretrained(
-        "google/gemma-2b", truncation_side="right", padding_side="right"
+        "gemmathon/gemma-2b-pro", truncation_side="right", padding_side="right"
     )
 
     with jax.default_device(jax.devices("cpu")[0]):
         # easylm_gemma_config = GemmaConfig.load_config(FLAGS.load_gemma_config)
-        gemma_config = GemmaConfig.from_pretrained("google/gemma-2b")
+        gemma_config = GemmaConfig.from_pretrained("gemmathon/gemma-2b-pro")
         # gemma_config.max_position_embeddings = FLAGS.seq_length
 
         _, params = StreamingCheckpointer.load_trainstate_checkpoint(

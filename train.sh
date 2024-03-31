@@ -1,6 +1,6 @@
-export TPU_NAME='tpu-test'
-export TPU_USER='pj2417'
-export ZONE='us-central2-b'
+export TPU_NAME='t1v-n-966acdd3-w-0'
+export TPU_USER='yunjiyeong0106'
+export ZONE='us-central1-b'
 
 echo "[local] Killing TPU"
 gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME \
@@ -18,13 +18,13 @@ gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME \
 
 echo "[local] Git pull"
 gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME --zone $ZONE --worker=all --command \
-"cd Gemma-EasyLM && git fetch origin && \
-git reset --hard origin/main && rm /home/$TPU_USER/Gemma-EasyLM/train.sh"
+"cd Gemma-EasyLM-pro && git fetch origin && \
+git reset --hard origin/main && rm /home/$TPU_USER/Gemma-EasyLM-pro/train.sh"
 
 echo "[local] Set runner.sh"
 # Log per 128 * 50 steps, matching the gradient accumulation steps = Real 1 step
 gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME --zone $ZONE --worker=all --command "
-cat > /home/$TPU_USER/Gemma-EasyLM/runner.sh << 'EOF'
+cat > /home/$TPU_USER/Gemma-EasyLM-pro/runner.sh << 'EOF'
 export LIBTPU_INIT_ARGS='--xla_jf_spmd_threshold_for_windowed_einsum_mib=0 --xla_tpu_spmd_threshold_for_allgather_cse=10000 --xla_enable_async_all_gather=true --xla_tpu_enable_latency_hiding_scheduler=true TPU_MEGACORE=MEGACORE_DENSE'
 
 python -m EasyLM.models.gemma.gemma_train \
@@ -37,7 +37,7 @@ python -m EasyLM.models.gemma.gemma_train \
 --save_milestone_freq=16384 \
 --train_dataset.type='huggingface' \
 --train_dataset.text_processor.fields='text' \
---train_dataset.huggingface_dataset.path='allenai/c4' \
+--train_dataset.huggingface_dataset.path='gemmathon/merged-pb-kw-nw' \
 --train_dataset.huggingface_dataset.name='ko' \
 --train_dataset.huggingface_dataset.seq_length=8192 \
 --train_dataset.huggingface_dataset.batch_size=2 \
@@ -52,13 +52,13 @@ python -m EasyLM.models.gemma.gemma_train \
 --checkpointer.save_optimizer_state=True \
 --checkpointer.float_dtype=bf16 \
 --logger.online=True \
---logger.output_dir=gs://gemma-train/gemma-checkpoint \
---logger.project='gemma-ko-2b-dev'
+--logger.output_dir=gs://gemma-train-pro \
+--logger.project='gemma-ko-2b-pro'
 EOF
-chmod +x /home/$TPU_USER/Gemma-EasyLM/runner.sh"
+chmod +x /home/$TPU_USER/Gemma-EasyLM-pro/runner.sh"
 
 echo "[local] RUN!!!"
 
-gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME --zone us-central2-b --worker=all --command \
+gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME --zone us-central1-b --worker=all --command \
 "screen -L -d -m bash -i -c 'export TCMALLOC_LARGE_ALLOC_REPORT_THRESHOLD=107374182400; \
-cd Gemma-EasyLM; /home/$TPU_USER/Gemma-EasyLM/runner.sh'"
+cd Gemma-EasyLM-pro; /home/$TPU_USER/Gemma-EasyLM-pro/runner.sh'"

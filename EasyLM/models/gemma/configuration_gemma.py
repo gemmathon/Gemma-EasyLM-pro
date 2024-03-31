@@ -110,7 +110,7 @@ class GemmaConfig(PretrainedConfig):
         vocab_size=256000,
         hidden_size=2048,
         intermediate_size=16384,
-        num_hidden_layers=18,
+        num_hidden_layers=21,
         num_attention_heads=8,
         num_key_value_heads=1,
         head_dim=256,

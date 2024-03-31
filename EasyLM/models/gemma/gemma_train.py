@@ -69,7 +69,7 @@ def main(argv):
     set_random_seed(FLAGS.seed)
 
     # tokenizer = GemmaConfig.get_tokenizer(FLAGS.tokenizer)
-    tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
+    tokenizer = AutoTokenizer.from_pretrained("gemmathon/gemma-2b-pro")
     dataset = DatasetFactory.load_dataset(FLAGS.train_dataset, tokenizer)
     if FLAGS.load_dataset_state != "":
         dataset.load_state_dict(mlxu.load_pickle(FLAGS.load_dataset_state))
@@ -86,7 +86,7 @@ def main(argv):
     #     gemma_config = GemmaConfig.load_config(FLAGS.load_gemma_config)
     # else:
     #     gemma_config = GemmaConfig(**FLAGS.gemma)
-    gemma_config = GemmaConfig.from_pretrained("google/gemma-2b")
+    gemma_config = GemmaConfig.from_pretrained("gemmathon/gemma-2b-pro")
 
     # if FLAGS.update_gemma_config != "":
     #     gemma_config.update(dict(eval(FLAGS.update_gemma_config)))
@@ -99,11 +99,20 @@ def main(argv):
     # )
     # if gemma_config.vocab_size < dataset.vocab_size:
     #     gemma_config.update(dict(vocab_size=dataset.vocab_size))
-
+    def zero_init(params):
+        return jax.tree_map(lambda x: jnp.zeros_like(x), params)
+    def count_nonzero_parameters(params):
+        """0이 아닌 파라미터의 개수를 카운트하는 함수"""
+        return sum(jnp.sum(p != 0).astype(int) for p in jax.tree_util.tree_leaves(params))
     model = FlaxGemmaForCausalLMModule(
         gemma_config, dtype=get_float_dtype_by_name(FLAGS.dtype)
     )
-
+    # 모델 복제
+    zero_initialized_model = FlaxGemmaForCausalLMModule(gemma_config, dtype=get_float_dtype_by_name(FLAGS.dtype))
+    dummy_input = jnp.ones((1, gemma_config.max_position_embeddings), dtype=jnp.int32)
+    rngs = {'params': jax.random.PRNGKey(0)}
+    zero_initialized_params = zero_init(zero_initialized_model.init(rngs, dummy_input, attention_mask=dummy_input)['params'])
+    
     optimizer, optimizer_info = OptimizerFactory.get_optimizer(
         FLAGS.optimizer,
         get_weight_decay_mask(GemmaConfig.get_weight_decay_exclusions()),
@@ -139,15 +148,32 @@ def main(argv):
 
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-        train_state = train_state.apply_gradients(grads=grads)
+
+        # 파라미터를 freeze하는 로직 추가
+        new_grads = {}
+        for key, grad in grads.items():
+            # "model.layers"로 시작하지 않거나 특정 레이어인 경우 업데이트
+            if not key.startswith("model.layers") or "model.layers.6." in key or "model.layers.13." in key or "model.layers.20." in key:
+                new_grads[key] = grad  # 해당 조건을 만족하는 경우 업데이트
+            else:
+                new_grads[key] = jnp.zeros_like(grad)  # 그 외는 freeze
+
+        train_state = train_state.apply_gradients(grads=new_grads)
+        # 업데이트 되고 있는 파라미터
+        updated_zero_initialized_params = zero_initialized_params.copy(update=train_state.params)
+        nonzero_params_count = count_nonzero_parameters(updated_zero_initialized_params)
+        print(f"Number of nonzero parameters in the trained model: {nonzero_params_count}")
+        
         metrics = dict(
             loss=loss,
             accuracy=accuracy,
             learning_rate=optimizer_info["learning_rate_schedule"](train_state.step),
-            gradient_norm=global_norm(grads),
+            gradient_norm=global_norm(new_grads),
             param_norm=global_norm(train_state.params),
         )
+
         return train_state, rng_generator(), metrics
+
 
     def eval_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)

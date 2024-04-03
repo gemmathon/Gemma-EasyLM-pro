@@ -144,41 +144,42 @@ def main(argv):
         (loss, accuracy), grads = grad_fn(train_state.params)
 
         #--------------------------------
-        p = {}
+        param_pro = {}
         for k,v in train_state.params['params']['model']['layers'].items():
             #k,v = param
             print(k)
             if k in ['6','13','20']:
-                p[k] = v
-        print("++++++++++++",p)
+                param_pro[k] = v
+        print("++++++++++++",param_pro)
+
         def map_nested_fn(fn):
             '''Recursively apply `fn` to the key-value pairs of a nested dict.'''
             def map_fn(nested_dict):
                 return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
                         for k, v in nested_dict.items()}
             return map_fn
+        def update_params(original_params, updates):
+            updated_params = original_params.copy() 
+            for key, value in updates.items():
+                updated_params[key] = value  #  교체
+            return updated_params
 
         label_fn = map_nested_fn(lambda k, _: k)
             
         tx = optax.multi_transform({'weight': optax.adamw(0.0002),"kernel": optax.adamw(0.0002),"embedding": optax.adamw(0.0002)},
                             label_fn)
         
-        # 업데이트를 위한 새로운 상태 생성
-        count = 0
-        state = tx.init(train_state.params)
-        count +=1
-        if count == 1:
-            print("state", state)
+        # 새로운 상태
+        state = tx.init(param_pro)
+        print("state", state)
 
-        # grads를 사용하여 업데이트 계산
-        updates, state = tx.update(grads, state, train_state.params)
-
+        # grads를 사용하여 업데이트
+        updates, state = tx.update(grads, state, param_pro)
         # 업데이트 적용
-        new_params = optax.apply_updates(train_state.params, updates)
-        if count == 1:
-            print("update new_params", new_params == train_state)
-
-
+        new_params = optax.apply_updates(param_pro, updates)
+        print("new_params",new_params)
+        new_params = update_params(train_state.params,new_params)
+        print("change "new_params)
         train_state = train_state.replace(params=new_params)
         metrics = dict(
             loss=loss,

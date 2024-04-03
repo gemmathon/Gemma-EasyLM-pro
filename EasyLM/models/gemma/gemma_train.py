@@ -145,8 +145,8 @@ def main(argv):
 
         #--------------------------------
         p = {}
-        for param in train_state.params['params']['model']['layers']:
-            k,v = param
+        for k,v in train_state.params['params']['model']['layers'].items():
+            #k,v = param
             print(k)
             if k in ['6','13','20']:
                 p[k] = v

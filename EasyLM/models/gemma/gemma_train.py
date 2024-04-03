@@ -144,7 +144,7 @@ def main(argv):
         
         def label_fn(params):
         # 파라미터 이름이 'layers.6'으로 시작하는 경우에만 'layer_to_update' 레이블을 할당합니다.
-            if train_state.params.model.layers.keys() in [6,13,20] :
+            if train_state.params['params']['model']['layers'].keys() in [6,13,20] :
                 return 'layer_to_update'
             else:
                 return 'default'

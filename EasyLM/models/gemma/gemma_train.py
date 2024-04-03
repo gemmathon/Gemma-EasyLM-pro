@@ -11,7 +11,6 @@ import jax.numpy as jnp
 from jax.experimental.pjit import pjit
 from jax.sharding import PartitionSpec as PS
 from flax.training.train_state import TrainState
-from flax.core import FrozenDict,frozen_dict
 
 from EasyLM.data import DatasetFactory
 from EasyLM.checkpoint import StreamingCheckpointer
@@ -129,7 +128,6 @@ def main(argv):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(("dp", "fsdp")))
         
-        # train state print
         print(train_state.params['params']['model']['layers'].keys())
         def loss_and_accuracy(params):
             logits = model.apply(
@@ -144,26 +142,18 @@ def main(argv):
         
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-
-        def create_mask(params, label_fn):
-            def _map(params, mask, label_fn):
-                for k in params:
-                    print(k)
-                    if label_fn(k):
-                        mask[k] = 'layer_to_update'
-                    else:
-                        if isinstance(params[k], FrozenDict):
-                            mask[k] = {}
-                            _map(params[k], mask[k], label_fn)
-                        else:
-                            mask[k] = 'default'
-            mask = {}
-            _map(params, mask, label_fn)
-            return frozen_dict.freeze(mask)
         
+        def label_fn(params):
+            # Parameter names are structured like 'params.model.layers.6.mlp.down_proj.kernel'
+            for param in params['params']['model']['layers']:
+                if any(str(layer_num) in param for layer_num in [6, 13, 21]):
+                    return "layer_to_update"
+                else:
+                    return "default"
 
+            
         tx = optax.multi_transform({'layer_to_update': optax.adamw(1e-4),'default': optax.set_to_zero()},
-                            create_mask(train_state.params['params']['model']['layers'], lambda s: (s in [6]) or (s in [13])  or (s in [20]) ))
+                            label_fn)
         
         # 업데이트를 위한 새로운 상태 생성
         count = 0

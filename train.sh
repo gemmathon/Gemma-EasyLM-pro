@@ -1,6 +1,6 @@
-export TPU_NAME='cs-504422364903-default'
+export TPU_NAME='tpu-16'
 export TPU_USER='yunjiyeong0106'
-export ZONE='us-central1-b'
+export ZONE='us-central2-b'
 
 echo "[local] Killing TPU"
 gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME \
@@ -52,13 +52,13 @@ python -m EasyLM.models.gemma.gemma_train \
 --checkpointer.save_optimizer_state=True \
 --checkpointer.float_dtype=bf16 \
 --logger.online=True \
---logger.output_dir=gs://gemma-train-pro \
---logger.project='gemma-ko-2b-pro'
+--logger.output_dir=gs://gemma-pro \
+--logger.project='gemma-pro'
 EOF
 chmod +x /home/$TPU_USER/Gemma-EasyLM-pro/runner.sh"
 
 echo "[local] RUN!!!"
 
-gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME --zone us-central1-b --worker=all --command \
+gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME --zone us-central2-b --worker=all --command \
 "screen -L -d -m bash -i -c 'export TCMALLOC_LARGE_ALLOC_REPORT_THRESHOLD=107374182400; \
 cd Gemma-EasyLM-pro; /home/$TPU_USER/Gemma-EasyLM-pro/runner.sh'"

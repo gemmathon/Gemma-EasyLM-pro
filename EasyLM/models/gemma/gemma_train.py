@@ -4,6 +4,7 @@ from functools import partial
 from tqdm import tqdm, trange
 import numpy as np
 import mlxu
+import optax
 
 import jax
 import jax.numpy as jnp
@@ -69,7 +70,7 @@ def main(argv):
     set_random_seed(FLAGS.seed)
 
     # tokenizer = GemmaConfig.get_tokenizer(FLAGS.tokenizer)
-    tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
+    tokenizer = AutoTokenizer.from_pretrained("gemmathon/gemma-2b-pro")
     dataset = DatasetFactory.load_dataset(FLAGS.train_dataset, tokenizer)
     if FLAGS.load_dataset_state != "":
         dataset.load_state_dict(mlxu.load_pickle(FLAGS.load_dataset_state))
@@ -86,7 +87,7 @@ def main(argv):
     #     gemma_config = GemmaConfig.load_config(FLAGS.load_gemma_config)
     # else:
     #     gemma_config = GemmaConfig(**FLAGS.gemma)
-    gemma_config = GemmaConfig.from_pretrained("google/gemma-2b")
+    gemma_config = GemmaConfig.from_pretrained("gemmathon/gemma-2b-pro")
 
     # if FLAGS.update_gemma_config != "":
     #     gemma_config.update(dict(eval(FLAGS.update_gemma_config)))
@@ -121,7 +122,8 @@ def main(argv):
             rngs=rng_generator(gemma_config.rng_keys()),
         )
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
-
+    
+    ############################################################
     def train_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(("dp", "fsdp")))
@@ -136,10 +138,40 @@ def main(argv):
             return cross_entropy_loss_and_accuracy(
                 logits, batch["target_tokens"], batch["loss_masks"]
             )
-
+        
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-        train_state = train_state.apply_gradients(grads=grads)
+        
+        def label_fn(k, v):
+        # 파라미터 이름이 'layers.6'으로 시작하는 경우에만 'layer_to_update' 레이블을 할당합니다.
+            if k.startswith('layers.6'):
+                return 'layer_to_update'
+            else:
+                return 'default'
+            
+        tx = optax.multi_transform({'layer_to_update': optax.adamw(),'default': optax.set_to_zero()},
+                            label_fn)
+        
+        # 업데이트를 위한 새로운 상태 생성
+        count = 0
+        state = tx.init(train_state.params)
+        count +=1
+        if count == 1:
+            print("state", state)
+
+        # grads를 사용하여 업데이트 계산
+        updates, state = tx.update(grads, state, train_state.params)
+        if count == 1:
+            print("update state", state)
+            print("update update", updates)
+
+        # 업데이트 적용
+        new_params = optax.apply_updates(train_state.params, updates)
+        if count == 1:
+            print("update new_params", new_params)
+
+
+        train_state = train_state.replace(params=new_params)
         metrics = dict(
             loss=loss,
             accuracy=accuracy,
@@ -148,6 +180,8 @@ def main(argv):
             param_norm=global_norm(train_state.params),
         )
         return train_state, rng_generator(), metrics
+    ############################################################
+    
 
     def eval_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)

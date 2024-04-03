@@ -160,7 +160,7 @@ def main(argv):
 
         label_fn = map_nested_fn(lambda k, _: k)
             
-        tx = optax.multi_transform({'weight': optax.adamw(1e-4),"kernel": optax.adamw(1e-4)},
+        tx = optax.multi_transform({'weight': optax.adamw(1e-4),"kernel": optax.adamw(1e-4),"embedding": optax.adamw(1e-4)},
                             label_fn)
         
         # 업데이트를 위한 새로운 상태 생성

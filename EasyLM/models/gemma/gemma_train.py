@@ -146,7 +146,8 @@ def main(argv):
         def label_fn(params):
             # Parameter names are structured like 'params.model.layers.6.mlp.down_proj.kernel'
             for param in params['params']['model']['layers']:
-                if param.keys() in ['6', '13', '21']:
+                print(param)
+                if param in ['6', '13', '21']:
                     return "layer_to_update"
                 else:
                     return "default"

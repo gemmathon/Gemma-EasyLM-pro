@@ -144,12 +144,12 @@ def main(argv):
         
         def label_fn(k, v):
         # 파라미터 이름이 'layers.6'으로 시작하는 경우에만 'layer_to_update' 레이블을 할당합니다.
-            if k.startswith('layers.6'):
+            if k.startswith('layers.6') or  k.startswith('layers.13') or k.startswith('layers.20'):
                 return 'layer_to_update'
             else:
                 return 'default'
             
-        tx = optax.multi_transform({'layer_to_update': optax.adamw(),'default': optax.set_to_zero()},
+        tx = optax.multi_transform({'layer_to_update': optax.adamw(1e-4),'default': optax.set_to_zero()},
                             label_fn)
         
         # 업데이트를 위한 새로운 상태 생성

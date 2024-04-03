@@ -38,21 +38,21 @@ python -m EasyLM.models.gemma.gemma_train \
 --train_dataset.type='huggingface' \
 --train_dataset.text_processor.fields='text' \
 --train_dataset.huggingface_dataset.path='gemmathon/merged-pb-kw-nw' \
---train_dataset.huggingface_dataset.name='ko' \
+--train_dataset.huggingface_dataset.name='default' \
 --train_dataset.huggingface_dataset.seq_length=8192 \
---train_dataset.huggingface_dataset.batch_size=2 \
+--train_dataset.huggingface_dataset.batch_size=4 \
 --train_dataset.huggingface_dataset.streaming=True \
 --optimizer.accumulate_gradient_steps=64 \
 --optimizer.type=adamw \
 --optimizer.adamw_optimizer.weight_decay=0.1 \
---optimizer.adamw_optimizer.lr=0.00005 \
---optimizer.adamw_optimizer.end_lr=0.000001 \
+--optimizer.adamw_optimizer.lr=0.0002  \
+--optimizer.adamw_optimizer.end_lr=0.0002 \
 --optimizer.adamw_optimizer.lr_warmup_steps=10000 \
---optimizer.adamw_optimizer.lr_decay_steps=320000 \
+--optimizer.adamw_optimizer.lr_decay_steps=160000 \
 --checkpointer.save_optimizer_state=True \
 --checkpointer.float_dtype=bf16 \
 --logger.online=True \
---logger.output_dir=gs://gemma-pro \
+--logger.output_dir=gs://gemma-pro/gemma-checkpoint \
 --logger.project='gemma-pro'
 EOF
 chmod +x /home/$TPU_USER/Gemma-EasyLM-pro/runner.sh"

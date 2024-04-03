@@ -127,7 +127,7 @@ def main(argv):
     def train_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(("dp", "fsdp")))
-        print(train_state.parmas.layers)
+        print(train_state.params.layers)
         def loss_and_accuracy(params):
             logits = model.apply(
                 params,
@@ -142,9 +142,9 @@ def main(argv):
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
         
-        def label_fn(k, v):
+        def label_fn(params):
         # 파라미터 이름이 'layers.6'으로 시작하는 경우에만 'layer_to_update' 레이블을 할당합니다.
-            if k.startswith('layers.6') or  k.startswith('layers.13') or k.startswith('layers.20'):
+            if train_state.parmas.layers:
                 return 'layer_to_update'
             else:
                 return 'default'

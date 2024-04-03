@@ -142,18 +142,25 @@ def main(argv):
         
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-        
-        def label_fn(params):
-            # Parameter names are structured like 'params.model.layers.6.mlp.down_proj.kernel'
-            for param in params['params']['model']['layers']:
-                print(param)
-                if param in ['6', '13', '21']:
-                    return "layer_to_update"
-                else:
-                    return "default"
 
+        #--------------------------------
+        p = {}
+        for param in train_state.params['params']['model']['layers']:
+            k,v = param
+            print(k)
+            if k in ['6','13','20']:
+                p[k] = v
+        print("++++++++++++",p)
+        def map_nested_fn(fn):
+            '''Recursively apply `fn` to the key-value pairs of a nested dict.'''
+            def map_fn(nested_dict):
+                return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
+                        for k, v in nested_dict.items()}
+            return map_fn
+
+        label_fn = map_nested_fn(lambda k, _: k)
             
-        tx = optax.multi_transform({'layer_to_update': optax.adamw(1e-4),'default': optax.set_to_zero()},
+        tx = optax.multi_transform({'weight': optax.adamw(1e-4),"kernel": optax.adamw(1e-4)},
                             label_fn)
         
         # 업데이트를 위한 새로운 상태 생성

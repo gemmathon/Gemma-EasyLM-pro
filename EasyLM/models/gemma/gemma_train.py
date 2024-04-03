@@ -148,6 +148,7 @@ def main(argv):
         def create_mask(params, label_fn):
             def _map(params, mask, label_fn):
                 for k in params:
+                    print(k)
                     if label_fn(k):
                         mask[k] = 'layer_to_update'
                     else:
@@ -162,7 +163,7 @@ def main(argv):
         
 
         tx = optax.multi_transform({'layer_to_update': optax.adamw(1e-4),'default': optax.set_to_zero()},
-                            create_mask(train_state.params['params']['model']['layers'], lambda s: (s.keys() in [6]) or (s.keys() in [13])  or (s.keys() in [20]) ))
+                            create_mask(train_state.params['params']['model']['layers'], lambda s: (s in [6]) or (s in [13])  or (s in [20]) ))
         
         # 업데이트를 위한 새로운 상태 생성
         count = 0

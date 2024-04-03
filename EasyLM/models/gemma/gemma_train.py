@@ -160,7 +160,7 @@ def main(argv):
 
         label_fn = map_nested_fn(lambda k, _: k)
             
-        tx = optax.multi_transform({'weight': optax.adamw(1e-4),"kernel": optax.adamw(1e-4),"embedding": optax.adamw(1e-4)},
+        tx = optax.multi_transform({'weight': optax.adamw(0.0002),"kernel": optax.adamw(0.0002),"embedding": optax.adamw(0.0002)},
                             label_fn)
         
         # 업데이트를 위한 새로운 상태 생성
@@ -172,14 +172,11 @@ def main(argv):
 
         # grads를 사용하여 업데이트 계산
         updates, state = tx.update(grads, state, train_state.params)
-        if count == 1:
-            print("update state", state)
-            print("update update", updates)
 
         # 업데이트 적용
         new_params = optax.apply_updates(train_state.params, updates)
         if count == 1:
-            print("update new_params", new_params)
+            print("update new_params", new_params == train_state)
 
 
         train_state = train_state.replace(params=new_params)

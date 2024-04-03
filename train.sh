@@ -29,12 +29,12 @@ export LIBTPU_INIT_ARGS='--xla_jf_spmd_threshold_for_windowed_einsum_mib=0 --xla
 
 python -m EasyLM.models.gemma.gemma_train \
 --load_checkpoint=flax_params::/home/$TPU_USER/flax_model.msgpack \
---mesh_dim=1,2,4 \
+--mesh_dim=1,-1,4 \
 --dtype=bf16 \
---total_steps=320000 \
---log_freq=64 \
---save_model_freq=16384 \
---save_milestone_freq=16384 \
+--total_steps=80889 \
+--log_freq=1 \
+--save_model_freq=80889 \
+--save_milestone_freq=80889 \
 --train_dataset.type='huggingface' \
 --train_dataset.text_processor.fields='text' \
 --train_dataset.huggingface_dataset.path='gemmathon/merged-pb-kw-nw' \
@@ -42,13 +42,12 @@ python -m EasyLM.models.gemma.gemma_train \
 --train_dataset.huggingface_dataset.seq_length=8192 \
 --train_dataset.huggingface_dataset.batch_size=4 \
 --train_dataset.huggingface_dataset.streaming=True \
---optimizer.accumulate_gradient_steps=64 \
+--optimizer.accumulate_gradient_steps=32 \
 --optimizer.type=adamw \
 --optimizer.adamw_optimizer.weight_decay=0.1 \
---optimizer.adamw_optimizer.lr=0.0002  \
+--optimizer.adamw_optimizer.lr=0.0002 \
 --optimizer.adamw_optimizer.end_lr=0.0002 \
---optimizer.adamw_optimizer.lr_warmup_steps=10000 \
---optimizer.adamw_optimizer.lr_decay_steps=160000 \
+--optimizer.adamw_optimizer.lr_warmup_steps=240 \
 --checkpointer.save_optimizer_state=True \
 --checkpointer.float_dtype=bf16 \
 --logger.online=True \

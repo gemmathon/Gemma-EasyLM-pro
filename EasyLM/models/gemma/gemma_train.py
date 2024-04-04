@@ -171,6 +171,7 @@ def main(argv):
             attention_mask=jnp.ones((4, seq_length), dtype=jnp.int32),
             rngs=rng_generator(gemma_config.rng_keys()),
         )
+        freeze_mask(params,['6','13','20'])
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
     
     ############################################################
@@ -216,7 +217,7 @@ def main(argv):
 
         #train_state = train_state.replace(params=new_params)
         train_state = train_state.apply_gradients(grads=grads)
-        print(train_state)
+        print(train_state,"train+++++++++++++++")
         metrics = dict(
             loss=loss,
             accuracy=accuracy,

@@ -143,8 +143,39 @@ def main(argv):
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
         #print("grads",grads)
-        #--------------------------------
-        
+
+
+        # 해당 layer 제외하고 파라미터 모두 변경한 것 돌리기
+        def freeze_mask_back(params, layer_list):
+            for k in params['params']['model']['layers'].keys():
+                if k not in layer_list:
+                    name = "default"
+                    #print(params['params']['model']['layers'][k])
+                    params['params']['model']['layers'][k]['input_layernorm']['weight'] = params['params']['model']['layers'][k]['input_layernorm'].pop(name)                    
+                    params['params']['model']['layers'][k]['mlp']['down_proj']['kernel'] = params['params']['model']['layers'][k]['mlp']['down_proj'].pop(name)
+                    params['params']['model']['layers'][k]['mlp']['gate_proj']['kernel'] = params['params']['model']['layers'][k]['mlp']['gate_proj'].pop(name)
+                    params['params']['model']['layers'][k]['mlp']['up_proj']['kernel'] = params['params']['model']['layers'][k]['mlp']['up_proj'].pop(name)
+                    params['params']['model']['layers'][k]['post_attention_layernorm']['weight'] = params['params']['model']['layers'][k]['post_attention_layernorm'].pop(name)
+                    params['params']['model']['layers'][k]['self_attn']['k_proj']['kernel'] = params['params']['model']['layers'][k]['self_attn']['k_proj'].pop(name)
+                    params['params']['model']['layers'][k]['self_attn']['o_proj']['kernel'] = params['params']['model']['layers'][k]['self_attn']['o_proj'].pop(name)
+                    params['params']['model']['layers'][k]['self_attn']['q_proj']['kernel'] = params['params']['model']['layers'][k]['self_attn']['q_proj'].pop(name)
+                    params['params']['model']['layers'][k]['self_attn']['v_proj']['kernel'] = params['params']['model']['layers'][k]['self_attn']['v_proj'].pop(name)
+
+        def freeze_mask(params,layer_list):
+            for k in params['params']['model']['layers'].keys():
+                if k not in layer_list:
+                    name = "default"
+                    #print(params['params']['model']['layers'][k])
+                    params['params']['model']['layers'][k]['input_layernorm'][name] = params['params']['model']['layers'][k]['input_layernorm'].pop('weight')
+                    params['params']['model']['layers'][k]['mlp']['down_proj'][name] = params['params']['model']['layers'][k]['mlp']['down_proj'].pop('kernel')
+                    params['params']['model']['layers'][k]['mlp']['gate_proj'][name] = params['params']['model']['layers'][k]['mlp']['gate_proj'].pop('kernel')
+                    params['params']['model']['layers'][k]['mlp']['up_proj'][name] = params['params']['model']['layers'][k]['mlp']['up_proj'].pop('kernel')
+                    params['params']['model']['layers'][k]['post_attention_layernorm'][name] = params['params']['model']['layers'][k]['post_attention_layernorm'].pop('weight')
+                    params['params']['model']['layers'][k]['self_attn']['k_proj'][name] = params['params']['model']['layers'][k]['self_attn']['k_proj'].pop('kernel')
+                    params['params']['model']['layers'][k]['self_attn']['o_proj'][name] = params['params']['model']['layers'][k]['self_attn']['o_proj'].pop('kernel')
+                    params['params']['model']['layers'][k]['self_attn']['q_proj'][name] = params['params']['model']['layers'][k]['self_attn']['q_proj'].pop('kernel')
+                    params['params']['model']['layers'][k]['self_attn']['v_proj'][name] = params['params']['model']['layers'][k]['self_attn']['v_proj'].pop('kernel')
+
         def map_nested_fn(fn):
             '''Recursively apply `fn` to the key-value pairs of a nested dict.'''
             def map_fn(nested_dict):
@@ -152,42 +183,13 @@ def main(argv):
                         for k, v in nested_dict.items()}
             return map_fn
         
-        for k in train_state.params['params']['model']['layers'].keys():
-            if k not in ['6','13','20']:
-                name = "default"
-                print(train_state.params['params']['model']['layers'][k])
-                train_state.params['params']['model']['layers'][k]['input_layernorm'][name] = train_state.params['params']['model']['layers'][k]['input_layernorm'].pop('weight')
-                grads['params']['model']['layers'][k]['input_layernorm'][name] = grads['params']['model']['layers'][k]['input_layernorm'].pop('weight')
-                
-                train_state.params['params']['model']['layers'][k]['mlp']['down_proj'][name] = train_state.params['params']['model']['layers'][k]['mlp']['down_proj'].pop('kernel')
-                grads['params']['model']['layers'][k]['mlp']['down_proj'][name] = grads['params']['model']['layers'][k]['mlp']['down_proj'].pop('kernel')
-                
-                train_state.params['params']['model']['layers'][k]['mlp']['gate_proj'][name] = train_state.params['params']['model']['layers'][k]['mlp']['gate_proj'].pop('kernel')
-                grads['params']['model']['layers'][k]['mlp']['gate_proj'][name] = grads['params']['model']['layers'][k]['mlp']['gate_proj'].pop('kernel')
-                
-                train_state.params['params']['model']['layers'][k]['mlp']['up_proj'][name] = train_state.params['params']['model']['layers'][k]['mlp']['up_proj'].pop('kernel')
-                grads['params']['model']['layers'][k]['mlp']['up_proj'][name] = grads['params']['model']['layers'][k]['mlp']['up_proj'].pop('kernel')
-                
-                train_state.params['params']['model']['layers'][k]['post_attention_layernorm'][name] = train_state.params['params']['model']['layers'][k]['post_attention_layernorm'].pop('weight')
-                grads['params']['model']['layers'][k]['post_attention_layernorm'][name] = grads['params']['model']['layers'][k]['post_attention_layernorm'].pop('weight')
-                
-                train_state.params['params']['model']['layers'][k]['self_attn']['k_proj'][name] = train_state.params['params']['model']['layers'][k]['self_attn']['k_proj'].pop('kernel')
-                grads['params']['model']['layers'][k]['self_attn']['k_proj'][name] = grads['params']['model']['layers'][k]['self_attn']['k_proj'].pop('kernel')
-                
-                train_state.params['params']['model']['layers'][k]['self_attn']['o_proj'][name] = train_state.params['params']['model']['layers'][k]['self_attn']['o_proj'].pop('kernel')
-                grads['params']['model']['layers'][k]['self_attn']['o_proj'][name] = grads['params']['model']['layers'][k]['self_attn']['o_proj'].pop('kernel')
-                
-                train_state.params['params']['model']['layers'][k]['self_attn']['q_proj'][name] = train_state.params['params']['model']['layers'][k]['self_attn']['q_proj'].pop('kernel')
-                grads['params']['model']['layers'][k]['self_attn']['q_proj'][name] = grads['params']['model']['layers'][k]['self_attn']['q_proj'].pop('kernel')
-                
-                train_state.params['params']['model']['layers'][k]['self_attn']['v_proj'][name] = train_state.params['params']['model']['layers'][k]['self_attn']['v_proj'].pop('kernel')
-                grads['params']['model']['layers'][k]['self_attn']['v_proj'][name] = grads['params']['model']['layers'][k]['self_attn']['v_proj'].pop('kernel')
-
-
+        # 특정 layer 제외 모두 값 default 처리
+        freeze_mask(train_state.params,['6','13','20'])
+        freeze_mask(grads,['6','13','20'])
 
         transforms = {
-            'weight': optax.adamw(0.0002),
-            'kernel': optax.adamw(0.0002),
+            'weight': optax.adamw(0.0002,weight_decay=0.1),
+            'kernel': optax.adamw(0.0002,weight_decay=0.1),
             'embedding': optax.set_to_zero(),
             'default': optax.set_to_zero(),
         }
@@ -198,44 +200,16 @@ def main(argv):
         # 새로운 상태 초기화 및 업데이트 적용
         state = tx.init(train_state.params)
         updates, state = tx.update(grads, state, train_state.params)
-        print(state ,"-------------------------------")
-        print(updates,"--------------------")
         new_params = optax.apply_updates(train_state.params, updates)
         #print(new_params,"new Params")
-        for k in new_params['params']['model']['layers'].keys():
-            if k not in ['6','13','20']:
-                name = "default"
-                #print(new_params['params']['model']['layers'][k])
-                new_params['params']['model']['layers'][k]['input_layernorm']['weight'] = new_params['params']['model']['layers'][k]['input_layernorm'].pop(name)
-                grads['params']['model']['layers'][k]['input_layernorm']["weight"] = grads['params']['model']['layers'][k]['input_layernorm'].pop(name)
-                
-                new_params['params']['model']['layers'][k]['mlp']['down_proj']['kernel'] = new_params['params']['model']['layers'][k]['mlp']['down_proj'].pop(name)
-                grads['params']['model']['layers'][k]['mlp']['down_proj']['kernel'] = grads['params']['model']['layers'][k]['mlp']['down_proj'].pop(name)
-                
-                new_params['params']['model']['layers'][k]['mlp']['gate_proj']['kernel'] = new_params['params']['model']['layers'][k]['mlp']['gate_proj'].pop(name)
-                grads['params']['model']['layers'][k]['mlp']['gate_proj']['kernel'] = grads['params']['model']['layers'][k]['mlp']['gate_proj'].pop(name)
-                
-                new_params['params']['model']['layers'][k]['mlp']['up_proj']['kernel'] = new_params['params']['model']['layers'][k]['mlp']['up_proj'].pop(name)
-                grads['params']['model']['layers'][k]['mlp']['up_proj']['kernel'] = grads['params']['model']['layers'][k]['mlp']['up_proj'].pop(name)
-                
-                new_params['params']['model']['layers'][k]['post_attention_layernorm']['weight'] = new_params['params']['model']['layers'][k]['post_attention_layernorm'].pop(name)
-                grads['params']['model']['layers'][k]['post_attention_layernorm']['weight'] = grads['params']['model']['layers'][k]['post_attention_layernorm'].pop(name)
-                
-                new_params['params']['model']['layers'][k]['self_attn']['k_proj']['kernel'] = new_params['params']['model']['layers'][k]['self_attn']['k_proj'].pop(name)
-                grads['params']['model']['layers'][k]['self_attn']['k_proj']['kernel'] = grads['params']['model']['layers'][k]['self_attn']['k_proj'].pop(name)
-                
-                new_params['params']['model']['layers'][k]['self_attn']['o_proj']['kernel'] = new_params['params']['model']['layers'][k]['self_attn']['o_proj'].pop(name)
-                grads['params']['model']['layers'][k]['self_attn']['o_proj']['kernel'] = grads['params']['model']['layers'][k]['self_attn']['o_proj'].pop(name)
-                
-                new_params['params']['model']['layers'][k]['self_attn']['q_proj']['kernel'] = new_params['params']['model']['layers'][k]['self_attn']['q_proj'].pop(name)
-                grads['params']['model']['layers'][k]['self_attn']['q_proj']['kernel'] = grads['params']['model']['layers'][k]['self_attn']['q_proj'].pop(name)
-                
-                new_params['params']['model']['layers'][k]['self_attn']['v_proj']['kernel'] = new_params['params']['model']['layers'][k]['self_attn']['v_proj'].pop(name)
-                grads['params']['model']['layers'][k]['self_attn']['v_proj']['kernel'] = grads['params']['model']['layers'][k]['self_attn']['v_proj'].pop(name)
+
+        # 원상 복구
+        freeze_mask_back(new_params,['6','13','20'])
+        freeze_mask_back(grads,['6','13','20'])
+        #print(new_params,"re Params")
+        #print(train_state,"train Params")
 
 
-        print(new_params,"re Params")
-        print(train_state,"train Params")
         train_state = train_state.replace(params=new_params)
         metrics = dict(
             loss=loss,

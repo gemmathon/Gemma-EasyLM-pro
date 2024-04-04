@@ -172,6 +172,7 @@ def main(argv):
             return cross_entropy_loss_and_accuracy(
                 logits, batch["target_tokens"], batch["loss_masks"]
             )
+        
         def map_nested_fn(fn):
             '''Recursively apply `fn` to the key-value pairs of a nested dict.'''
             def map_fn(nested_dict):

@@ -142,52 +142,50 @@ def main(argv):
         
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-        print("grads",grads)
+        #print("grads",grads)
         #--------------------------------
-        param_pro = {}
-        for k,v in train_state.params['params']['model']['layers'].items():
-            #k,v = param
-            print(k)
-            if k in ['6','13','20']:
-                param_pro[k] = v
-        #grads
-        grads_pro ={}
-        for k,v in grads['params']['model']['layers'].items():
-            #k,v = param
-            print(k)
-            if k in ['6','13','20']:
-                grads_pro[k] = v
 
-        print("++++++++++++",param_pro)
-
+        def label_fn(param_name, _):
+            # 파라미터 이름을 '.'을 기준으로 나눕니다.
+            parts = param_name.split('.')
+            # 파라미터 이름의 구조에서 'layers' 다음에 오는 부분을 레이어 번호로 간주합니다.
+            if 'layers' in parts:
+                layer_idx = parts.index('layers') + 1
+                if layer_idx < len(parts):
+                    # 레이어 번호가 '6', '13', '20' 중 하나인 경우 'unfreeze' 레이블을 반환합니다.
+                    if parts[layer_idx] in ['6', '13', '20']:
+                        return 'unfreeze'
+            # 그 외의 경우에는 'default' 레이블을 반환합니다.
+            return 'default'
+        
         def map_nested_fn(fn):
             '''Recursively apply `fn` to the key-value pairs of a nested dict.'''
             def map_fn(nested_dict):
                 return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
                         for k, v in nested_dict.items()}
             return map_fn
-        def update_params(original_params, updates):
-            updated_params = original_params.copy() 
-            for key, value in updates.items():
-                updated_params[key] = value  #  교체
-            return updated_params
+        # 중첩된 파라미터 구조에 대해 label_fn을 재귀적으로 적용
+        labeled_params = map_nested_fn(label_fn)(train_state.params['params']['model']['layers'])
 
-        label_fn = map_nested_fn(lambda k, _: k)
-            
-        tx = optax.multi_transform({'weight': optax.adamw(0.0002),"kernel": optax.adamw(0.0002),"embedding": optax.adamw(0.0002)},
-                            label_fn)
-        
-        # 새로운 상태
-        state = tx.init(param_pro)
-        print("state", state)
+        transforms = {
+            'unfreeze': optax.adam(1.0),
+            'default': optax.set_to_zero(),
+        }
 
-        # grads를 사용하여 업데이트
-        updates, state = tx.update(grads_pro, state, param_pro)
-        # 업데이트 적용
-        new_params = optax.apply_updates(param_pro, updates)
-        print("new_params",new_params)
-        new_params = update_params(train_state.params,new_params)
-        print("change ",new_params)
+        # 각 파라미터 이름에 대해 적절한 레이블('unfreeze' 또는 'default')을 반환하는 함수
+        def get_label(name, _):
+            # 파라미터 이름에서 'layers.X' 부분을 추출
+            layer_name = name.split('.')[2]  # 예: 'params.model.layers.6.weight' -> '6'
+            return labeled_params.get(layer_name, 'default')
+
+        tx = optax.multi_transform(transforms, get_label)
+
+        # 새로운 상태 초기화 및 업데이트 적용
+        state = tx.init(train_state.params)
+        updates, state = tx.update(grads, state, train_state.params)
+        new_params = optax.apply_updates(train_state.params, updates)
+        print(new_params,"new Params")
+
 
         train_state = train_state.replace(params=new_params)
         metrics = dict(

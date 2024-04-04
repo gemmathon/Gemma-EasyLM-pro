@@ -142,7 +142,7 @@ def main(argv):
         
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-
+        print("grads",grads)
         #--------------------------------
         param_pro = {}
         for k,v in train_state.params['params']['model']['layers'].items():
@@ -150,6 +150,7 @@ def main(argv):
             print(k)
             if k in ['6','13','20']:
                 param_pro[k] = v
+
         print("++++++++++++",param_pro)
 
         def map_nested_fn(fn):
@@ -179,7 +180,7 @@ def main(argv):
         new_params = optax.apply_updates(param_pro, updates)
         print("new_params",new_params)
         new_params = update_params(train_state.params,new_params)
-        print("change "new_params)
+        print("change ",new_params)
         train_state = train_state.replace(params=new_params)
         metrics = dict(
             loss=loss,

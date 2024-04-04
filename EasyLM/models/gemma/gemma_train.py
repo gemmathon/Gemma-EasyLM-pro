@@ -155,7 +155,7 @@ def main(argv):
                                                 '11': 'freeze','12': 'freeze','13': 'adamw','14': 'freeze',
                                                 '15': 'freeze','16': 'freeze','17': 'freeze','18': 'freeze',
                                                 '19': 'freeze','20': 'adamw'})
-        return TrainState.create(params=params, tx=tx, apply_fn=None)
+        return TrainState.create(params=params['params']['model']['layers'], tx=tx, apply_fn=None)
 
     def init_fn(rng):
         rng_generator = JaxRNG(rng)
@@ -209,14 +209,14 @@ def main(argv):
         #freeze_mask_back(grads,['6','13','20'])
         
         #train_state = train_state.replace(params=new_params)
-        train_state = train_state.apply_gradients( grads=grads)
+        train_state.params['params']['model']['layers'] = train_state.params['params']['model']['layers'].apply_gradients( grads=grads)
         print(train_state,"++++++++++++++++++++++++")
         metrics = dict(
             loss=loss,
             accuracy=accuracy,
             learning_rate=optimizer_info["learning_rate_schedule"](train_state.step),
             gradient_norm=global_norm(grads),
-            param_norm=global_norm(train_state.params),
+            param_norm=global_norm(train_state.params['params']['model']['layers']),
         )
         return train_state, rng_generator(), metrics
     ############################################################

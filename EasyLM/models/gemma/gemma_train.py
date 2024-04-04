@@ -169,7 +169,7 @@ def main(argv):
         # transformation
         # condition
         optimizer = optax.multi_transform(
-            {'adamw': optax.adamw(0.0002), 'zero': optax.zero_grads()},
+            {'adamw': optax.adamw(0.0002), 'zero': optax.set_to_zero()},
             create_mask(params['params']['model']['layers'],params['params']['model']['layers'].keys(), lambda s: s in ['6','13','20'])
         )
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)

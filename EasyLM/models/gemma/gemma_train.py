@@ -192,8 +192,8 @@ def main(argv):
             return map_fn
         
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
-        (loss, accuracy), grads = grad_fn(train_state.params)
-        #print("grads",grads)
+        (loss, accuracy), grads = grad_fn(train_state.params['params']['model']['layers'])
+        print("grads",grads)
 
         # 특정 layer 제외 모두 값 default 처리
         #freeze_mask(train_state.params,['6','13','20'])

@@ -171,6 +171,7 @@ def main(argv):
             attention_mask=jnp.ones((4, seq_length), dtype=jnp.int32),
             rngs=rng_generator(gemma_config.rng_keys()),
         )
+        print(params,"init++++++++++++=")
         freeze_mask(params,['6','13','20'])
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
     
@@ -252,7 +253,7 @@ def main(argv):
     train_state_partition = match_partition_rules(
         GemmaConfig.get_partition_rules(), train_state_shapes
     )
-
+    print(train_state_partition,"partition")
     shard_fns, gather_fns = make_shard_and_gather_fns(
         train_state_partition, train_state_shapes
     )

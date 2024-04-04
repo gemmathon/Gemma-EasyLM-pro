@@ -152,7 +152,7 @@ def main(argv):
                 param_pro[k] = v
         #grads
         grads_pro ={}
-        for k,v in grads.params['params']['model']['layers'].items():
+        for k,v in grads['params']['model']['layers'].items():
             #k,v = param
             print(k)
             if k in ['6','13','20']:
@@ -188,6 +188,7 @@ def main(argv):
         print("new_params",new_params)
         new_params = update_params(train_state.params,new_params)
         print("change ",new_params)
+
         train_state = train_state.replace(params=new_params)
         metrics = dict(
             loss=loss,

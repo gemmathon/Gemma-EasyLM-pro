@@ -1,4 +1,4 @@
-export TPU_NAME='tpu-32'
+export TPU_NAME='tpu-16'
 export TPU_USER='yunjiyeong0106'
 export ZONE='us-central2-b'
 

@@ -150,6 +150,13 @@ def main(argv):
             print(k)
             if k in ['6','13','20']:
                 param_pro[k] = v
+        #grads
+        grads_pro ={}
+        for k,v in grads.params['params']['model']['layers'].items():
+            #k,v = param
+            print(k)
+            if k in ['6','13','20']:
+                grads_pro[k] = v
 
         print("++++++++++++",param_pro)
 
@@ -175,7 +182,7 @@ def main(argv):
         print("state", state)
 
         # grads를 사용하여 업데이트
-        updates, state = tx.update(grads, state, param_pro)
+        updates, state = tx.update(grads_pro, state, param_pro)
         # 업데이트 적용
         new_params = optax.apply_updates(param_pro, updates)
         print("new_params",new_params)

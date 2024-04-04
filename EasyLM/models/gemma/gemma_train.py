@@ -181,6 +181,8 @@ def main(argv):
         # 새로운 상태 초기화 및 업데이트 적용
         state = tx.init(train_state.params)
         updates, state = tx.update(grads, state, train_state.params)
+        print(state ,"-------------------------------")
+        print(updates,"--------------------")
         new_params = optax.apply_updates(train_state.params, updates)
         print(new_params,"new Params")
 

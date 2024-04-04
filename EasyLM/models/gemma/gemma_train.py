@@ -197,7 +197,7 @@ def main(argv):
 
         label_fn = map_nested_fn(lambda k, _: k)
         tx = optax.multi_transform(transforms, label_fn)
-        opt_state = tx.init(model.params)
+        opt_state = tx.init(train_state.params)
         #state = tx.init(opt_state)
         updates, opt_state = tx.update(grads, opt_state, train_state.params)
         new_params = optax.apply_updates(train_state.params, updates)

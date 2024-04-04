@@ -155,16 +155,16 @@ def main(argv):
         for k in train_state.params['params']['model']['layers'].keys():
             if k not in ['6','13','20']:
                 name = "default"
-                train_state.params['params']['model']['layers']['input_layernorm'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('weight')
-                train_state.params['params']['model']['layers']['mlp'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('weight')
-                train_state.params['params']['model']['layers']['input_layernorm']['down_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm']['down_proj'].pop('kernel')
-                train_state.params['params']['model']['layers']['input_layernorm']['gate_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm']['gate_proj'].pop('kernel')
-                train_state.params['params']['model']['layers']['input_layernorm']['up_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm']['up_proj'].pop('kernel')
-                train_state.params['params']['model']['layers']['post_attention_layernorm'][name] = train_state.params['params']['model']['layers']['post_attention_layernorm'].pop('weight')
-                train_state.params['params']['model']['layers']['self_attn']['k_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('kernel')
-                train_state.params['params']['model']['layers']['self_attn']['o_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('kernel')
-                train_state.params['params']['model']['layers']['self_attn']['q_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('kernel')
-                train_state.params['params']['model']['layers']['self_attn']['v_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('kernel')
+                train_state.params['params']['model']['layers'][k]['input_layernorm'][name] = train_state.params['params']['model']['layers'][k]['input_layernorm'].pop('weight')
+                train_state.params['params']['model']['layers'][k]['mlp'][name] = train_state.params['params']['model']['layers'][k]['input_layernorm'].pop('weight')
+                train_state.params['params']['model']['layers'][k]['input_layernorm']['down_proj'][name] = train_state.params['params']['model']['layers'][k]['input_layernorm']['down_proj'].pop('kernel')
+                train_state.params['params']['model']['layers'][k]['input_layernorm']['gate_proj'][name] = train_state.params['params']['model']['layers'][k]['input_layernorm']['gate_proj'].pop('kernel')
+                train_state.params['params']['model']['layers'][k]['input_layernorm']['up_proj'][name] = train_state.params['params']['model']['layers'][k]['input_layernorm']['up_proj'].pop('kernel')
+                train_state.params['params']['model']['layers'][k]['post_attention_layernorm'][name] = train_state.params['params']['model']['layers'][k]['post_attention_layernorm'].pop('weight')
+                train_state.params['params']['model']['layers'][k]['self_attn']['k_proj'][name] = train_state.params['params']['model']['layers'][k]['input_layernorm'].pop('kernel')
+                train_state.params['params']['model']['layers'][k]['self_attn']['o_proj'][name] = train_state.params['params']['model']['layers'][k]['input_layernorm'].pop('kernel')
+                train_state.params['params']['model']['layers'][k]['self_attn']['q_proj'][name] = train_state.params['params']['model']['layers'][k]['input_layernorm'].pop('kernel')
+                train_state.params['params']['model']['layers'][k]['self_attn']['v_proj'][name] = train_state.params['params']['model']['layers'][k]['input_layernorm'].pop('kernel')
 
 
 

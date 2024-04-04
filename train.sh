@@ -1,4 +1,4 @@
-export TPU_NAME='tpu-16'
+export TPU_NAME='tpu-32'
 export TPU_USER='yunjiyeong0106'
 export ZONE='us-central2-b'
 
@@ -40,7 +40,7 @@ python -m EasyLM.models.gemma.gemma_train \
 --train_dataset.huggingface_dataset.path='gemmathon/merged-pb-kw-nw' \
 --train_dataset.huggingface_dataset.name='default' \
 --train_dataset.huggingface_dataset.seq_length=8192 \
---train_dataset.huggingface_dataset.batch_size=2 \
+--train_dataset.huggingface_dataset.batch_size=4 \
 --train_dataset.huggingface_dataset.streaming=True \
 --optimizer.accumulate_gradient_steps=32 \
 --optimizer.type=adamw \

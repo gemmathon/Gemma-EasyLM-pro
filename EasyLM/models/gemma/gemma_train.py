@@ -10,7 +10,7 @@ import jax
 import jax.numpy as jnp
 from jax.experimental.pjit import pjit
 from jax.sharding import PartitionSpec as PS
-from EasyLM.models.gemma.train_state import TrainState
+from flax.training.train_state import TrainState
 
 from EasyLM.data import DatasetFactory
 from EasyLM.checkpoint import StreamingCheckpointer
@@ -144,13 +144,7 @@ def main(argv):
     def create_trainstate_from_params(params):
         # transformation
         # condition
-        transforms = {
-            'freeze': optax.set_to_zero(),
-            'adamw': optax.adamw(0.0002),
-        }
-        tx = optax.multi_transform(transforms, { 'weight': 'freeze','kernel': 'freeze','default': 'adamw', 
-                                                'embedding': 'freeze'})
-        return TrainState.create(params=params, tx=tx, apply_fn=None)
+        return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
     def init_fn(rng):
         rng_generator = JaxRNG(rng)
@@ -161,14 +155,12 @@ def main(argv):
             rngs=rng_generator(gemma_config.rng_keys()),
         )
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
-    count = 0
+
     ############################################################
     def train_step(train_state,rng, batch):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(("dp", "fsdp")))
-        freeze_mask(train_state.params,['6','13','20'])
-        print(train_state.params['params'].keys())
-        print(train_state.params['params']['model'].keys())
+
         print(train_state.params['params']['model']['layers'].keys())
         def loss_and_accuracy(params):
             logits = model.apply(
@@ -190,24 +182,33 @@ def main(argv):
         
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-        print("grads",grads)
+        #print("grads",grads)
 
         # 특정 layer 제외 모두 값 default 처리
-       
-        #freeze_mask(grads,['6','13','20'])
-   
+        freeze_mask(train_state.params,['6','13','20'])
+        freeze_mask(grads,['6','13','20'])
+
+        transforms = {
+            'weight': optax.set_to_zero(),
+            'kernel': optax.set_to_zero(),
+            'embedding': optax.set_to_zero(),
+            'default': optax.adamw(0.0002),
+        }
+
+        label_fn = map_nested_fn(lambda k, _: k)
+        tx = optax.multi_transform(transforms, label_fn)
+        opt_state = tx.init(model.params)
         #state = tx.init(opt_state)
-        #updates, opt_state = tx.update(grads, opt_state, train_state.params)
-        #new_params = optax.apply_updates(grads,train_state.params, updates)
-        #print(new_params,"new Params")
+        updates, opt_state = tx.update(grads, opt_state, train_state.params)
+        new_params = optax.apply_updates(train_state.params, updates)
+        print(new_params,"new Params")
 
         # 원상 복구
-        freeze_mask_back(train_state.params,['6','13','20'])
+        freeze_mask_back(new_params,['6','13','20'])
         freeze_mask_back(grads,['6','13','20'])
         
-        #train_state = train_state.replace(params=new_params)
-        train_state = train_state.apply_gradients( grads=grads)
-        print(train_state,"++++++++++++++++++++++++")
+        train_state = train_state.replace(params=new_params)
+        #train_state = train_state.apply_gradients(grads=grads)
         metrics = dict(
             loss=loss,
             accuracy=accuracy,

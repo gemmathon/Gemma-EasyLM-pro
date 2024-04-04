@@ -123,6 +123,7 @@ def main(argv):
                 #       for k, v in nested_dict.items()}
         mask = {}
         _map(params, mask, label_fn)
+        print(mask,"mask++++++++++++++++++")
         return frozen_dict.freeze(mask)
     
     model = FlaxGemmaForCausalLMModule(

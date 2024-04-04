@@ -39,7 +39,7 @@ python -m EasyLM.models.gemma.gemma_train \
 --train_dataset.text_processor.fields='text' \
 --train_dataset.huggingface_dataset.path='gemmathon/merged-pb-kw-nw' \
 --train_dataset.huggingface_dataset.name='default' \
---train_dataset.huggingface_dataset.seq_length=8192 \
+--train_dataset.huggingface_dataset.seq_length=4 \
 --train_dataset.huggingface_dataset.batch_size=2 \
 --train_dataset.huggingface_dataset.streaming=True \
 --optimizer.accumulate_gradient_steps=32 \
@@ -55,7 +55,7 @@ python -m EasyLM.models.gemma.gemma_train \
 --logger.project='gemma-pro'
 EOF
 chmod +x /home/$TPU_USER/Gemma-EasyLM-pro/runner.sh"
-
+#8192 
 echo "[local] RUN!!!"
 
 gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME --zone us-central2-b --worker=all --command \

@@ -201,36 +201,36 @@ def main(argv):
         print(state ,"-------------------------------")
         print(updates,"--------------------")
         new_params = optax.apply_updates(train_state.params, updates)
-        print(new_params,"new Params")
-        for k in new_params.params['params']['model']['layers'].keys():
+        #print(new_params,"new Params")
+        for k in new_params['params']['model']['layers'].keys():
             if k not in ['6','13','20']:
                 name = "default"
-                print(new_params.params['params']['model']['layers'][k])
-                new_params.params['params']['model']['layers'][k]['input_layernorm']['weight'] = new_params.params['params']['model']['layers'][k]['input_layernorm'].pop(name)
+                #print(new_params['params']['model']['layers'][k])
+                new_params['params']['model']['layers'][k]['input_layernorm']['weight'] = new_params['params']['model']['layers'][k]['input_layernorm'].pop(name)
                 grads['params']['model']['layers'][k]['input_layernorm']["weight"] = grads['params']['model']['layers'][k]['input_layernorm'].pop(name)
                 
-                new_params.params['params']['model']['layers'][k]['mlp']['down_proj']['kernel'] = new_params.params['params']['model']['layers'][k]['mlp']['down_proj'].pop(name)
+                new_params['params']['model']['layers'][k]['mlp']['down_proj']['kernel'] = new_params['params']['model']['layers'][k]['mlp']['down_proj'].pop(name)
                 grads['params']['model']['layers'][k]['mlp']['down_proj']['kernel'] = grads['params']['model']['layers'][k]['mlp']['down_proj'].pop(name)
                 
-                new_params.params['params']['model']['layers'][k]['mlp']['gate_proj']['kernel'] = new_params.params['params']['model']['layers'][k]['mlp']['gate_proj'].pop(name)
+                new_params['params']['model']['layers'][k]['mlp']['gate_proj']['kernel'] = new_params['params']['model']['layers'][k]['mlp']['gate_proj'].pop(name)
                 grads['params']['model']['layers'][k]['mlp']['gate_proj']['kernel'] = grads['params']['model']['layers'][k]['mlp']['gate_proj'].pop(name)
                 
-                new_params.params['params']['model']['layers'][k]['mlp']['up_proj']['kernel'] = new_params.params['params']['model']['layers'][k]['mlp']['up_proj'].pop(name)
+                new_params['params']['model']['layers'][k]['mlp']['up_proj']['kernel'] = new_params['params']['model']['layers'][k]['mlp']['up_proj'].pop(name)
                 grads['params']['model']['layers'][k]['mlp']['up_proj']['kernel'] = grads['params']['model']['layers'][k]['mlp']['up_proj'].pop(name)
                 
-                new_params.params['params']['model']['layers'][k]['post_attention_layernorm']['weight'] = new_params.params['params']['model']['layers'][k]['post_attention_layernorm'].pop(name)
+                new_params['params']['model']['layers'][k]['post_attention_layernorm']['weight'] = new_params['params']['model']['layers'][k]['post_attention_layernorm'].pop(name)
                 grads['params']['model']['layers'][k]['post_attention_layernorm']['weight'] = grads['params']['model']['layers'][k]['post_attention_layernorm'].pop(name)
                 
-                new_params.params['params']['model']['layers'][k]['self_attn']['k_proj']['kernel'] = new_params.params['params']['model']['layers'][k]['self_attn']['k_proj'].pop(name)
+                new_params['params']['model']['layers'][k]['self_attn']['k_proj']['kernel'] = new_params['params']['model']['layers'][k]['self_attn']['k_proj'].pop(name)
                 grads['params']['model']['layers'][k]['self_attn']['k_proj']['kernel'] = grads['params']['model']['layers'][k]['self_attn']['k_proj'].pop(name)
                 
-                new_params.params['params']['model']['layers'][k]['self_attn']['o_proj']['kernel'] = new_params.params['params']['model']['layers'][k]['self_attn']['o_proj'].pop(name)
+                new_params['params']['model']['layers'][k]['self_attn']['o_proj']['kernel'] = new_params['params']['model']['layers'][k]['self_attn']['o_proj'].pop(name)
                 grads['params']['model']['layers'][k]['self_attn']['o_proj']['kernel'] = grads['params']['model']['layers'][k]['self_attn']['o_proj'].pop(name)
                 
-                new_params.params['params']['model']['layers'][k]['self_attn']['q_proj']['kernel'] = new_params.params['params']['model']['layers'][k]['self_attn']['q_proj'].pop(name)
+                new_params['params']['model']['layers'][k]['self_attn']['q_proj']['kernel'] = new_params['params']['model']['layers'][k]['self_attn']['q_proj'].pop(name)
                 grads['params']['model']['layers'][k]['self_attn']['q_proj']['kernel'] = grads['params']['model']['layers'][k]['self_attn']['q_proj'].pop(name)
                 
-                new_params.params['params']['model']['layers'][k]['self_attn']['v_proj']['kernel'] = new_params.params['params']['model']['layers'][k]['self_attn']['v_proj'].pop(name)
+                new_params['params']['model']['layers'][k]['self_attn']['v_proj']['kernel'] = new_params['params']['model']['layers'][k]['self_attn']['v_proj'].pop(name)
                 grads['params']['model']['layers'][k]['self_attn']['v_proj']['kernel'] = grads['params']['model']['layers'][k]['self_attn']['v_proj'].pop(name)
 
 

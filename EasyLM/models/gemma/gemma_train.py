@@ -10,7 +10,7 @@ import jax
 import jax.numpy as jnp
 from jax.experimental.pjit import pjit
 from jax.sharding import PartitionSpec as PS
-from flax.training.train_state import TrainState
+from EasyLM.models.gemma.train_state import TrainState
 
 from EasyLM.data import DatasetFactory
 from EasyLM.checkpoint import StreamingCheckpointer
@@ -155,9 +155,9 @@ def main(argv):
             rngs=rng_generator(gemma_config.rng_keys()),
         )
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
-    
+    count = 0
     ############################################################
-    def train_step(train_state, rng, batch):
+    def train_step(train_state,rng, batch):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(("dp", "fsdp")))
 
@@ -185,38 +185,36 @@ def main(argv):
         #print("grads",grads)
 
         # 특정 layer 제외 모두 값 default 처리
-        freeze_mask(train_state.params,['6','13','20'])
-        freeze_mask(grads,['6','13','20'])
+        #freeze_mask(train_state.params,['6','13','20'])
+        #freeze_mask(grads,['6','13','20'])
 
         transforms = {
-            'weight': optax.set_to_zero(),
-            'kernel': optax.set_to_zero(),
-            'embedding': optax.set_to_zero(),
-            'default': optax.adamw(0.0002),
+            'freeze': optax.set_to_zero(),
+            #'kernel': optax.set_to_zero(),
+            #'embedding': optax.set_to_zero(),
+            'adamw': optax.adamw(0.0002),
         }
 
-        #tx = optax.multi_transform(
-        #    {'adamw': optax.adamw(0.0002), 'zero': optax.set_to_zero()},
-        #    create_mask(train_state.params['params']['model']['layers'],train_state.params['params']['model']['layers'].keys(), lambda s: s in ['6','13','20'])
-        #)
-
         label_fn = map_nested_fn(lambda k, _: k)
-        tx = optax.multi_transform(transforms, label_fn)
-        
-        # 새로운 상태 초기화 및 업데이트 적용
-        #state = optimizer.init(train_state.params)
-        updates, state = tx.update(grads, train_state.params)
-        new_params = optax.apply_updates(train_state.params, updates)
-        print(new_params,"new Params")
+        tx = optax.multi_transform(transforms, {'0': 'freeze','1': 'freeze','2': 'freeze', 
+                                                '3': 'freeze','4': 'freeze',
+                                                '5': 'freeze','6': 'adamw',
+                                                '7': 'freeze','8': 'freeze','9': 'freeze','10': 'freeze',
+                                                '11': 'freeze','12': 'freeze','13': 'adamw','14': 'freeze',
+                                                '15': 'freeze','16': 'freeze','17': 'freeze','18': 'freeze',
+                                                '19': 'freeze','20': 'adamw'})
+   
+        #state = tx.init(opt_state)
+        #updates, opt_state = tx.update(grads, opt_state, train_state.params)
+        #new_params = optax.apply_updates(grads,train_state.params, updates)
+        #print(new_params,"new Params")
 
         # 원상 복구
-        freeze_mask_back(new_params,['6','13','20'])
-        freeze_mask_back(grads,['6','13','20'])
-        #print(new_params,"re Params")
-        #print(train_state,"train Params")
-
-        train_state = train_state.replace(params=new_params)
-        #train_state = train_state.apply_gradients(grads=grads)
+        #freeze_mask_back(new_params,['6','13','20'])
+        #freeze_mask_back(grads,['6','13','20'])
+        
+        #train_state = train_state.replace(params=new_params)
+        train_state = train_state.apply_gradients(tx=tx, grads=grads)
         metrics = dict(
             loss=loss,
             accuracy=accuracy,
@@ -361,6 +359,7 @@ def main(argv):
                 save_checkpoint(train_state, milestone=True)
             elif FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
                 save_checkpoint(train_state)
+
 
         if FLAGS.save_model_freq > 0:
             save_checkpoint(train_state)

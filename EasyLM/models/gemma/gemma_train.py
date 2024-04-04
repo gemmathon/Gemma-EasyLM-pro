@@ -100,31 +100,6 @@ def main(argv):
     # )
     # if gemma_config.vocab_size < dataset.vocab_size:
     #     gemma_config.update(dict(vocab_size=dataset.vocab_size))
-    from flax.core import FrozenDict,frozen_dict
-    def create_mask(params,keys, label_fn):
-        '''Recursively apply `label_fn` to the key-value pairs of a nested dict.'''
-        def _map(params,mask,label_fn):
-            for k in keys:
-                if label_fn(k):
-                    mask['weight'] = "adamw" 
-                    mask['kernel'] = "adamw" 
-                   # mask['weight'] = "adamw" 
-                else:
-                    if isinstance(params[k],FrozenDict):
-                        mask['weight'] = {}
-                        mask['kernel'] = {}
-                        mask['embedding'] = {}
-                        _map(params[k],mask[k],label_fn)
-                    else:
-                        mask['weight'] = 'zero'
-                        mask['kernel'] = 'zero'
-                        mask['embedding'] = 'zero'
-            #return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
-                #       for k, v in nested_dict.items()}
-        mask = {}
-        _map(params, mask, label_fn)
-        print(mask,"mask++++++++++++++++++")
-        return frozen_dict.freeze(mask)
     
     model = FlaxGemmaForCausalLMModule(
         gemma_config, dtype=get_float_dtype_by_name(FLAGS.dtype)
@@ -137,7 +112,7 @@ def main(argv):
     # 해당 layer 제외하고 파라미터 모두 변경한 것 돌리기
     def freeze_mask_back(params, layer_list):
         for k in params['params']['model']['layers'].keys():
-            if k not in layer_list:
+            if k in layer_list:
                 name = "default"
                 #print(params['params']['model']['layers'][k])
                 params['params']['model']['layers'][k]['input_layernorm']['weight'] = params['params']['model']['layers'][k]['input_layernorm'].pop(name)                    
@@ -152,7 +127,7 @@ def main(argv):
 
     def freeze_mask(params,layer_list):
         for k in params['params']['model']['layers'].keys():
-            if k not in layer_list:
+            if k  in layer_list:
                 name = "default"
                 #print(params['params']['model']['layers'][k])
                 params['params']['model']['layers'][k]['input_layernorm'][name] = params['params']['model']['layers'][k]['input_layernorm'].pop('weight')
@@ -169,10 +144,6 @@ def main(argv):
     def create_trainstate_from_params(params):
         # transformation
         # condition
-        optimizer = optax.multi_transform(
-            {'adamw': optax.adamw(0.0002), 'zero': optax.set_to_zero()},
-            create_mask(params['params']['model']['layers'],params['params']['model']['layers'].keys(), lambda s: s in ['6','13','20'])
-        )
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
     def init_fn(rng):
@@ -189,7 +160,6 @@ def main(argv):
     def train_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(("dp", "fsdp")))
-        
 
         print(train_state.params['params']['model']['layers'].keys())
         def loss_and_accuracy(params):
@@ -202,39 +172,50 @@ def main(argv):
             return cross_entropy_loss_and_accuracy(
                 logits, batch["target_tokens"], batch["loss_masks"]
             )
+        def map_nested_fn(fn):
+            '''Recursively apply `fn` to the key-value pairs of a nested dict.'''
+            def map_fn(nested_dict):
+                return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
+                        for k, v in nested_dict.items()}
+            return map_fn
         
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
         #print("grads",grads)
 
         # 특정 layer 제외 모두 값 default 처리
-        #freeze_mask(train_state.params,['6','13','20'])
-        #freeze_mask(grads,['6','13','20'])
+        freeze_mask(train_state.params,['6','13','20'])
+        freeze_mask(grads,['6','13','20'])
 
         transforms = {
-            'weight': optax.adamw(0.0002),
-            'kernel': optax.adamw(0.0002),
+            'weight': optax.set_to_zero(),
+            'kernel': optax.set_to_zero(),
             'embedding': optax.set_to_zero(),
-            'default': optax.set_to_zero(),
+            'default': optax.adamw(0.0002),
         }
 
-        #label_fn = map_nested_fn(lambda k, _: k)
-        #tx = optax.multi_transform(transforms, label_fn)
+        #tx = optax.multi_transform(
+        #    {'adamw': optax.adamw(0.0002), 'zero': optax.set_to_zero()},
+        #    create_mask(train_state.params['params']['model']['layers'],train_state.params['params']['model']['layers'].keys(), lambda s: s in ['6','13','20'])
+        #)
+
+        label_fn = map_nested_fn(lambda k, _: k)
+        tx = optax.multi_transform(transforms, label_fn)
         
         # 새로운 상태 초기화 및 업데이트 적용
         #state = optimizer.init(train_state.params)
-        #updates, state = tx.update(grads, train_state.params)
-        #new_params = optax.apply_updates(train_state.params, updates)
-        #print(new_params,"new Params")
+        updates, state = tx.update(grads, train_state.params)
+        new_params = optax.apply_updates(train_state.params, updates)
+        print(new_params,"new Params")
 
         # 원상 복구
-        #freeze_mask_back(new_params,['6','13','20'])
-        #freeze_mask_back(grads,['6','13','20'])
+        freeze_mask_back(new_params,['6','13','20'])
+        freeze_mask_back(grads,['6','13','20'])
         #print(new_params,"re Params")
         #print(train_state,"train Params")
 
-        #train_state = train_state.replace(params=new_params)
-        train_state = train_state.apply_gradients(grads=grads)
+        train_state = train_state.replace(params=new_params)
+        #train_state = train_state.apply_gradients(grads=grads)
         metrics = dict(
             loss=loss,
             accuracy=accuracy,

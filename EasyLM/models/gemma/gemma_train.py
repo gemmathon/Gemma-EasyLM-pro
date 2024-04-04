@@ -168,6 +168,10 @@ def main(argv):
     def create_trainstate_from_params(params):
         # transformation
         # condition
+        optimizer = optax.multi_transform(
+            {'adamw': optax.adamw(0.0002), 'zero': optax.zero_grads()},
+            create_mask(params['params']['model']['layers'],params['params']['model']['layers'].keys(), lambda s: s in ['6','13','20'])
+        )
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
     def init_fn(rng):
@@ -185,10 +189,7 @@ def main(argv):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(("dp", "fsdp")))
         
-        optimizer = optax.multi_transform(
-            {'adamw': optimizer, 'zero': optax.zero_grads()},
-            create_mask(train_state.params['params']['model']['layers'],train_state.params['params']['model']['layers'].keys(), lambda s: s in ['6','13','20'])
-        )
+
         print(train_state.params['params']['model']['layers'].keys())
         def loss_and_accuracy(params):
             logits = model.apply(

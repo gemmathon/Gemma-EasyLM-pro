@@ -77,7 +77,7 @@ class TrainState(struct.PyTreeNode):
   tx: optax.GradientTransformation = struct.field(pytree_node=False)
   opt_state: optax.OptState = struct.field(pytree_node=True)
 
-  def apply_gradients(self, *, grads,tx ,**kwargs):
+  def apply_gradients(self, *, grads, tx ,**kwargs):
     """Updates ``step``, ``params``, ``opt_state`` and ``**kwargs`` in return value.
 
     Note that internally this function calls ``.tx.update()`` followed by a call

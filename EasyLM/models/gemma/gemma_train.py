@@ -144,7 +144,18 @@ def main(argv):
     def create_trainstate_from_params(params):
         # transformation
         # condition
-        return TrainState.create(params=params, tx=optimizer, apply_fn=None)
+        transforms = {
+            'freeze': optax.set_to_zero(),
+            'adamw': optax.adamw(0.0002),
+        }
+        tx = optax.multi_transform(transforms, {'0': 'freeze','1': 'freeze','2': 'freeze', 
+                                                '3': 'freeze','4': 'freeze',
+                                                '5': 'freeze','6': 'adamw',
+                                                '7': 'freeze','8': 'freeze','9': 'freeze','10': 'freeze',
+                                                '11': 'freeze','12': 'freeze','13': 'adamw','14': 'freeze',
+                                                '15': 'freeze','16': 'freeze','17': 'freeze','18': 'freeze',
+                                                '19': 'freeze','20': 'adamw'})
+        return TrainState.create(params=params, tx=tx, apply_fn=None)
 
     def init_fn(rng):
         rng_generator = JaxRNG(rng)
@@ -187,22 +198,6 @@ def main(argv):
         # 특정 layer 제외 모두 값 default 처리
         #freeze_mask(train_state.params,['6','13','20'])
         #freeze_mask(grads,['6','13','20'])
-
-        transforms = {
-            'freeze': optax.set_to_zero(),
-            #'kernel': optax.set_to_zero(),
-            #'embedding': optax.set_to_zero(),
-            'adamw': optax.adamw(0.0002),
-        }
-
-        label_fn = map_nested_fn(lambda k, _: k)
-        tx = optax.multi_transform(transforms, {'0': 'freeze','1': 'freeze','2': 'freeze', 
-                                                '3': 'freeze','4': 'freeze',
-                                                '5': 'freeze','6': 'adamw',
-                                                '7': 'freeze','8': 'freeze','9': 'freeze','10': 'freeze',
-                                                '11': 'freeze','12': 'freeze','13': 'adamw','14': 'freeze',
-                                                '15': 'freeze','16': 'freeze','17': 'freeze','18': 'freeze',
-                                                '19': 'freeze','20': 'adamw'})
    
         #state = tx.init(opt_state)
         #updates, opt_state = tx.update(grads, opt_state, train_state.params)
@@ -214,7 +209,8 @@ def main(argv):
         #freeze_mask_back(grads,['6','13','20'])
         
         #train_state = train_state.replace(params=new_params)
-        train_state = train_state.apply_gradients(tx=tx, grads=grads)
+        train_state = train_state.apply_gradients( grads=grads)
+        print(train_state,"++++++++++++++++++++++++")
         metrics = dict(
             loss=loss,
             accuracy=accuracy,

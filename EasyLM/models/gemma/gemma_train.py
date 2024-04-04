@@ -144,19 +144,6 @@ def main(argv):
         (loss, accuracy), grads = grad_fn(train_state.params)
         #print("grads",grads)
         #--------------------------------
-
-        def label_fn(param_name, _):
-            # 파라미터 이름을 '.'을 기준으로 나눕니다.
-            parts = param_name.split('.')
-            # 파라미터 이름의 구조에서 'layers' 다음에 오는 부분을 레이어 번호로 간주합니다.
-            if 'layers' in parts:
-                layer_idx = parts.index('layers') + 1
-                if layer_idx < len(parts):
-                    # 레이어 번호가 '6', '13', '20' 중 하나인 경우 'unfreeze' 레이블을 반환합니다.
-                    if parts[layer_idx] in ['6', '13', '20']:
-                        return 'unfreeze'
-            # 그 외의 경우에는 'default' 레이블을 반환합니다.
-            return 'default'
         
         def map_nested_fn(fn):
             '''Recursively apply `fn` to the key-value pairs of a nested dict.'''
@@ -164,21 +151,32 @@ def main(argv):
                 return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
                         for k, v in nested_dict.items()}
             return map_fn
-        # 중첩된 파라미터 구조에 대해 label_fn을 재귀적으로 적용
-        labeled_params = map_nested_fn(label_fn)(train_state.params['params']['model']['layers'])
+        
+        for k in train_state.params['params']['model']['layers'].keys():
+            if k not in ['6','13','20']:
+                name = "default"
+                train_state.params['params']['model']['layers']['input_layernorm'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('weight')
+                train_state.params['params']['model']['layers']['mlp'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('weight')
+                train_state.params['params']['model']['layers']['input_layernorm']['down_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm']['down_proj'].pop('kernel')
+                train_state.params['params']['model']['layers']['input_layernorm']['gate_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm']['gate_proj'].pop('kernel')
+                train_state.params['params']['model']['layers']['input_layernorm']['up_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm']['up_proj'].pop('kernel')
+                train_state.params['params']['model']['layers']['post_attention_layernorm'][name] = train_state.params['params']['model']['layers']['post_attention_layernorm'].pop('weight')
+                train_state.params['params']['model']['layers']['self_attn']['k_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('kernel')
+                train_state.params['params']['model']['layers']['self_attn']['o_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('kernel')
+                train_state.params['params']['model']['layers']['self_attn']['q_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('kernel')
+                train_state.params['params']['model']['layers']['self_attn']['v_proj'][name] = train_state.params['params']['model']['layers']['input_layernorm'].pop('kernel')
+
+
 
         transforms = {
-            'unfreeze': optax.adam(1.0),
+            'weight': optax.adamw(0.0002),
+            'kernel': optax.adamw(0.0002),
+            'embedding': optax.set_to_zero(),
             'default': optax.set_to_zero(),
         }
 
-        # 각 파라미터 이름에 대해 적절한 레이블('unfreeze' 또는 'default')을 반환하는 함수
-        def get_label(name, _):
-            # 파라미터 이름에서 'layers.X' 부분을 추출
-            layer_name = name.split('.')[2]  # 예: 'params.model.layers.6.weight' -> '6'
-            return labeled_params.get(layer_name, 'default')
-
-        tx = optax.multi_transform(transforms, get_label)
+        label_fn = map_nested_fn(lambda k, _: k)
+        tx = optax.multi_transform(transforms, label_fn)
 
         # 새로운 상태 초기화 및 업데이트 적용
         state = tx.init(train_state.params)

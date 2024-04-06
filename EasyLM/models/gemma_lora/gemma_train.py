@@ -109,7 +109,14 @@ def main(argv):
     )
 
     def create_trainstate_from_params(params):
-
+        model = lorax.lora(model)
+        dim = 2048
+        rank_constraint = 64
+        lora_spec = [rank_constraint for param in params]
+        lora_params = lorax.init_lora(param_tree=params, spec=lora_spec, rng=jax.random.PRNGKey(0))
+        model(lora_params, jnp.ones((dim,)))
+        optimizer = lorax.wrap_optimizer(optimizer, lora_spec)
+        params = optimizer.init(lora_params)
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
     def init_fn(rng):
@@ -120,14 +127,6 @@ def main(argv):
             attention_mask=jnp.ones((4, seq_length), dtype=jnp.int32),
             rngs=rng_generator(gemma_config.rng_keys()),
         )
-        model = lorax.lora(model)
-        dim = 2048
-        rank_constraint = 64
-        lora_spec = [rank_constraint for param in params]
-        lora_params = lorax.init_lora(param_tree=params, spec=lora_spec, rng=jax.random.PRNGKey(0))
-        model(lora_params, jnp.ones((dim,)))
-        optimizer = lorax.wrap_optimizer(optimizer, lora_spec)
-        params = optimizer.init(lora_params)
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
     def train_step(train_state, rng, batch):

@@ -103,7 +103,6 @@ def main(argv):
     model = FlaxGemmaForCausalLMModule(
         gemma_config, dtype=get_float_dtype_by_name(FLAGS.dtype)
     )
-    model = lorax.lora(model)
     optimizer, optimizer_info = OptimizerFactory.get_optimizer(
         FLAGS.optimizer,
         get_weight_decay_mask(GemmaConfig.get_weight_decay_exclusions()),
@@ -121,6 +120,7 @@ def main(argv):
             attention_mask=jnp.ones((4, seq_length), dtype=jnp.int32),
             rngs=rng_generator(gemma_config.rng_keys()),
         )
+        model = lorax.lora(model)
         dim = 2048
         rank_constraint = 64
         lora_spec = [rank_constraint for param in params]

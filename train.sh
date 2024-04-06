@@ -27,7 +27,7 @@ gcloud compute tpus tpu-vm ssh $TPU_USER@$TPU_NAME --zone $ZONE --worker=all --c
 cat > /home/$TPU_USER/Gemma-EasyLM-pro/runner.sh << 'EOF'
 export LIBTPU_INIT_ARGS='--xla_jf_spmd_threshold_for_windowed_einsum_mib=0 --xla_tpu_spmd_threshold_for_allgather_cse=10000 --xla_enable_async_all_gather=true --xla_tpu_enable_latency_hiding_scheduler=true TPU_MEGACORE=MEGACORE_DENSE'
 
-python -m EasyLM.models.gemma.gemma_train \
+python -m EasyLM.models.gemma_lora.gemma_train \
 --load_checkpoint=flax_params::/home/$TPU_USER/flax_model.msgpack \
 --mesh_dim=1,-1,4 \
 --dtype=bf16 \

@@ -1,10 +1,9 @@
 import pprint
 from functools import partial
-
+import lorax
 from tqdm import tqdm, trange
 import numpy as np
 import mlxu
-import optax
 
 import jax
 import jax.numpy as jnp
@@ -70,7 +69,7 @@ def main(argv):
     set_random_seed(FLAGS.seed)
 
     # tokenizer = GemmaConfig.get_tokenizer(FLAGS.tokenizer)
-    tokenizer = AutoTokenizer.from_pretrained("gemmathon/gemma-2b-pro")
+    tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
     dataset = DatasetFactory.load_dataset(FLAGS.train_dataset, tokenizer)
     if FLAGS.load_dataset_state != "":
         dataset.load_state_dict(mlxu.load_pickle(FLAGS.load_dataset_state))
@@ -87,7 +86,7 @@ def main(argv):
     #     gemma_config = GemmaConfig.load_config(FLAGS.load_gemma_config)
     # else:
     #     gemma_config = GemmaConfig(**FLAGS.gemma)
-    gemma_config = GemmaConfig.from_pretrained("gemmathon/gemma-2b-pro")
+    gemma_config = GemmaConfig.from_pretrained("google/gemma-2b")
 
     # if FLAGS.update_gemma_config != "":
     #     gemma_config.update(dict(eval(FLAGS.update_gemma_config)))
@@ -100,50 +99,18 @@ def main(argv):
     # )
     # if gemma_config.vocab_size < dataset.vocab_size:
     #     gemma_config.update(dict(vocab_size=dataset.vocab_size))
-    
+
     model = FlaxGemmaForCausalLMModule(
         gemma_config, dtype=get_float_dtype_by_name(FLAGS.dtype)
     )
-
+    model = lorax.lora(model)
     optimizer, optimizer_info = OptimizerFactory.get_optimizer(
         FLAGS.optimizer,
         get_weight_decay_mask(GemmaConfig.get_weight_decay_exclusions()),
     )
-    # 해당 layer 제외하고 파라미터 모두 변경한 것 돌리기
-    def freeze_mask_back(params, layer_list):
-        for k in params['params']['model']['layers'].keys():
-            if k in layer_list:
-                name = "default"
-                #print(params['params']['model']['layers'][k])
-                params['params']['model']['layers'][k]['input_layernorm']['weight'] = params['params']['model']['layers'][k]['input_layernorm'].pop(name)                    
-                params['params']['model']['layers'][k]['mlp']['down_proj']['kernel'] = params['params']['model']['layers'][k]['mlp']['down_proj'].pop(name)
-                params['params']['model']['layers'][k]['mlp']['gate_proj']['kernel'] = params['params']['model']['layers'][k]['mlp']['gate_proj'].pop(name)
-                params['params']['model']['layers'][k]['mlp']['up_proj']['kernel'] = params['params']['model']['layers'][k]['mlp']['up_proj'].pop(name)
-                params['params']['model']['layers'][k]['post_attention_layernorm']['weight'] = params['params']['model']['layers'][k]['post_attention_layernorm'].pop(name)
-                params['params']['model']['layers'][k]['self_attn']['k_proj']['kernel'] = params['params']['model']['layers'][k]['self_attn']['k_proj'].pop(name)
-                params['params']['model']['layers'][k]['self_attn']['o_proj']['kernel'] = params['params']['model']['layers'][k]['self_attn']['o_proj'].pop(name)
-                params['params']['model']['layers'][k]['self_attn']['q_proj']['kernel'] = params['params']['model']['layers'][k]['self_attn']['q_proj'].pop(name)
-                params['params']['model']['layers'][k]['self_attn']['v_proj']['kernel'] = params['params']['model']['layers'][k]['self_attn']['v_proj'].pop(name)
-
-    def freeze_mask(params,layer_list):
-        for k in params['params']['model']['layers'].keys():
-            if k  in layer_list:
-                name = "default"
-                #print(params['params']['model']['layers'][k])
-                params['params']['model']['layers'][k]['input_layernorm'][name] = params['params']['model']['layers'][k]['input_layernorm'].pop('weight')
-                params['params']['model']['layers'][k]['mlp']['down_proj'][name] = params['params']['model']['layers'][k]['mlp']['down_proj'].pop('kernel')
-                params['params']['model']['layers'][k]['mlp']['gate_proj'][name] = params['params']['model']['layers'][k]['mlp']['gate_proj'].pop('kernel')
-                params['params']['model']['layers'][k]['mlp']['up_proj'][name] = params['params']['model']['layers'][k]['mlp']['up_proj'].pop('kernel')
-                params['params']['model']['layers'][k]['post_attention_layernorm'][name] = params['params']['model']['layers'][k]['post_attention_layernorm'].pop('weight')
-                params['params']['model']['layers'][k]['self_attn']['k_proj'][name] = params['params']['model']['layers'][k]['self_attn']['k_proj'].pop('kernel')
-                params['params']['model']['layers'][k]['self_attn']['o_proj'][name] = params['params']['model']['layers'][k]['self_attn']['o_proj'].pop('kernel')
-                params['params']['model']['layers'][k]['self_attn']['q_proj'][name] = params['params']['model']['layers'][k]['self_attn']['q_proj'].pop('kernel')
-                params['params']['model']['layers'][k]['self_attn']['v_proj'][name] = params['params']['model']['layers'][k]['self_attn']['v_proj'].pop('kernel')
-
 
     def create_trainstate_from_params(params):
-        # transformation
-        # condition
+
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
     def init_fn(rng):
@@ -154,14 +121,19 @@ def main(argv):
             attention_mask=jnp.ones((4, seq_length), dtype=jnp.int32),
             rngs=rng_generator(gemma_config.rng_keys()),
         )
+        dim = 2048
+        rank_constraint = 64
+        lora_spec = [rank_constraint for param in params]
+        lora_params = lorax.init_lora(param_tree=params, spec=lora_spec, rng=jax.random.PRNGKey(0))
+        model(lora_params, jnp.ones((dim,)))
+        optimizer = lorax.wrap_optimizer(optimizer, lora_spec)
+        params = optimizer.init(lora_params)
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
-    ############################################################
-    def train_step(train_state,rng, batch):
+    def train_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(("dp", "fsdp")))
 
-        print(train_state.params['params']['model']['layers'].keys())
         def loss_and_accuracy(params):
             logits = model.apply(
                 params,
@@ -172,42 +144,9 @@ def main(argv):
             return cross_entropy_loss_and_accuracy(
                 logits, batch["target_tokens"], batch["loss_masks"]
             )
-        
-        def map_nested_fn(fn):
-            '''Recursively apply `fn` to the key-value pairs of a nested dict.'''
-            def map_fn(nested_dict):
-                return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
-                        for k, v in nested_dict.items()}
-            return map_fn
-        
-        # loss , gradient, metrics
+
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-        #print("grads",grads)
-
-
-        transforms = {
-            'weight': optax.set_to_zero(),
-            'kernel': optax.set_to_zero(),
-            'embedding': optax.set_to_zero(),
-            'default': optax.adamw(0.0002),
-        }
-        label_fn = {
-            'default' : "('params','model', 'layers', '6')",
-            'default' : "('params','model', 'layers', '13')",
-            'default' : "('params','model', 'layers', '20')"
-        }
-
-        #label_fn = map_nested_fn(lambda k, _: k)
-        #tx = optax.multi_transform(transforms, label_fn)
-        #opt_state = tx.init(model.params)
-        #state = tx.init(opt_state)
-        #updates, opt_state = tx.update(grads, opt_state, train_state.params)
-        #new_params = optax.apply_updates(train_state.params, updates)
-        #print(new_params,"new Params")
-
-        
-        #train_state = train_state.replace(params=new_params)
         train_state = train_state.apply_gradients(grads=grads)
         metrics = dict(
             loss=loss,
@@ -217,8 +156,6 @@ def main(argv):
             param_norm=global_norm(train_state.params),
         )
         return train_state, rng_generator(), metrics
-    ############################################################
-    
 
     def eval_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
@@ -353,7 +290,6 @@ def main(argv):
                 save_checkpoint(train_state, milestone=True)
             elif FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
                 save_checkpoint(train_state)
-
 
         if FLAGS.save_model_freq > 0:
             save_checkpoint(train_state)

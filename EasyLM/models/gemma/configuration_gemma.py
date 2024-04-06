@@ -112,7 +112,7 @@ class GemmaConfig(PretrainedConfig):
         intermediate_size=16384,
         num_hidden_layers=21,
         num_attention_heads=8,
-        num_key_value_heads=1,
+        num_key_value_heads=4,
         head_dim=256,
         hidden_act="gelu",
         max_position_embeddings=8192,

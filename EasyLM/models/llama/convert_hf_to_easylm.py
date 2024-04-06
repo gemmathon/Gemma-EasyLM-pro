@@ -3,7 +3,7 @@ Usage:
 python convert_hf_to_easylm.py  \
        --checkpoint_dir     /path/hf_format_dir/    \
        --output_file /path/easylm_format.stream   \
-       --model_size 7b \
+       --model_size 3b \
        --streaming
 """
 import time
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_size",
         type=str,
-        default="7b",
+        default="3b",
         choices=["7b", "13b", "30b", "65b"],
         help="model size",
     )

@@ -39,7 +39,7 @@ from EasyLM.jax_utils import float_tensor_to_dtype
 FLAGS, FLAGS_DEF = mlxu.define_flags_with_default(
     load_checkpoint='',
     tokenizer_path='',
-    model_size='13b',
+    model_size='3b',
     output_dir='',
 )
 

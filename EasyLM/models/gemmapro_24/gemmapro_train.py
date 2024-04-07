@@ -4,13 +4,16 @@ from functools import partial
 from tqdm import tqdm, trange
 import numpy as np
 import mlxu
-import optax
 
 import jax
 import jax.numpy as jnp
 from jax.experimental.pjit import pjit
 from jax.sharding import PartitionSpec as PS
 from flax.training.train_state import TrainState
+from flax import traverse_util
+from flax.core import freeze, frozen_dict
+from flax.core.frozen_dict import FrozenDict
+from typing import Mapping
 
 from EasyLM.data import DatasetFactory
 from EasyLM.checkpoint import StreamingCheckpointer
@@ -29,8 +32,8 @@ from EasyLM.jax_utils import (
     make_shard_and_gather_fns,
     with_sharding_constraint,
 )
-from EasyLM.models.gemma.gemma_model import FlaxGemmaForCausalLMModule
-from EasyLM.models.gemma.configuration_gemma import GemmaConfig
+from EasyLM.models.gemmapro.gemmapro_model import FlaxGemmaForCausalLMModule
+from EasyLM.models.gemmapro.configuration_gemmapro import GemmaProConfig
 
 from transformers import AutoTokenizer
 
@@ -70,7 +73,7 @@ def main(argv):
     set_random_seed(FLAGS.seed)
 
     # tokenizer = GemmaConfig.get_tokenizer(FLAGS.tokenizer)
-    tokenizer = AutoTokenizer.from_pretrained("gemmathon/gemma-2b-pro")
+    tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
     dataset = DatasetFactory.load_dataset(FLAGS.train_dataset, tokenizer)
     if FLAGS.load_dataset_state != "":
         dataset.load_state_dict(mlxu.load_pickle(FLAGS.load_dataset_state))
@@ -87,7 +90,7 @@ def main(argv):
     #     gemma_config = GemmaConfig.load_config(FLAGS.load_gemma_config)
     # else:
     #     gemma_config = GemmaConfig(**FLAGS.gemma)
-    gemma_config = GemmaConfig.from_pretrained("gemmathon/gemma-2b-pro")
+    gemma_config = GemmaProConfig.from_pretrained("gemmathon/gemma-2b-pro-layer24")
 
     # if FLAGS.update_gemma_config != "":
     #     gemma_config.update(dict(eval(FLAGS.update_gemma_config)))
@@ -100,20 +103,57 @@ def main(argv):
     # )
     # if gemma_config.vocab_size < dataset.vocab_size:
     #     gemma_config.update(dict(vocab_size=dataset.vocab_size))
-    
+
     model = FlaxGemmaForCausalLMModule(
         gemma_config, dtype=get_float_dtype_by_name(FLAGS.dtype)
     )
 
     optimizer, optimizer_info = OptimizerFactory.get_optimizer(
         FLAGS.optimizer,
-        get_weight_decay_mask(GemmaConfig.get_weight_decay_exclusions()),
+        get_weight_decay_mask(GemmaProConfig.get_weight_decay_exclusions()),
     )
 
+
+    def bool_grad_mask_fn(params):
+        """Create a boolean mask over parameters for filtering.
+        Returns:
+            mask (frozen_dict): `True` for non-frozen parameters, `False` for frozen parameters (i.e. the feature encoder).
+        """
+        flat_params = traverse_util.flatten_dict(params)
+        flat_mask = {path: ('3' in path or '7' in path or '11' in path or '15' in path or '19' in path or '23' in path) for path in flat_params}
+        mask = traverse_util.unflatten_dict(flat_mask)
+        return freeze(mask)
+    
+    def filter_params(params, mask):
+        flat_params = traverse_util.flatten_dict(params)
+        flat_mask = traverse_util.flatten_dict(mask)
+        filtered_params = {}
+        for name, value in flat_params.items():
+            if flat_mask[name]:
+                filtered_params[name] = flat_params[name]
+        return freeze(traverse_util.unflatten_dict(filtered_params))
+
+    def merge_params(params: Mapping, updates: Mapping) -> FrozenDict:
+        if isinstance(params, FrozenDict):
+            output = params.unfreeze()
+        else:
+            output = params
+
+        for name, update_value in updates.items():
+            current_value = params.get(name, None)
+            if isinstance(current_value, Mapping) and isinstance(update_value, Mapping):
+                output[name] = merge_params(current_value, update_value)
+            else:
+                output[name] = update_value
+
+        return freeze(output)
+
     def create_trainstate_from_params(params):
-        # transformation
-        # condition
-        return TrainState.create(params=params, tx=optimizer, apply_fn=None)
+        train_state = TrainState.create(params=params, tx=optimizer, apply_fn=None)
+        # train_state = train_state.replace(
+        #     opt_state = optimizer.init(filter_params(params, bool_grad_mask_fn(params)).unfreeze())
+        # )
+        return train_state
 
     def init_fn(rng):
         rng_generator = JaxRNG(rng)
@@ -123,15 +163,14 @@ def main(argv):
             attention_mask=jnp.ones((4, seq_length), dtype=jnp.int32),
             rngs=rng_generator(gemma_config.rng_keys()),
         )
-        return TrainState.create(params=params, tx=optimizer, apply_fn=None)
+        return create_trainstate_from_params(params)
 
-    ############################################################
-    def train_step(train_state,rng, batch):
+    def train_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(("dp", "fsdp")))
-
-        print(train_state.params['params']['model']['layers'].keys())
+        
         def loss_and_accuracy(params):
+            # params = merge_params(params, differentiable_params)
             logits = model.apply(
                 params,
                 batch["input_tokens"],
@@ -142,23 +181,36 @@ def main(argv):
                 logits, batch["target_tokens"], batch["loss_masks"]
             )
         
-        
-        # loss , gradient, metrics
+        # differentiable_params = filter_params(train_state.params, bool_grad_mask_fn(train_state.params))
+
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-        #print("grads",grads)
+        # print(differentiable_params)
+        # print(train_state.opt_state)
 
-        train_state = train_state.apply_gradients(grads=grads)
+        new_state = train_state.apply_gradients(grads=grads)
+        differentiable_params = filter_params(new_state.params, bool_grad_mask_fn(new_state.params))
+        
+        # print(differentiable_params)
+        params = merge_params(train_state.params, differentiable_params).unfreeze()
+        
+        # updates, opt_state = train_state.tx.update(grads, train_state.opt_state, differentiable_params)
+        
+        # differentiable_params = optax.apply_updates(differentiable_params, updates)
+        
+        # params = merge_params(train_state.params, differentiable_params)
+        new_state = new_state.replace(
+            params=params,
+        )
+
         metrics = dict(
             loss=loss,
             accuracy=accuracy,
-            learning_rate=optimizer_info["learning_rate_schedule"](train_state.step),
+            learning_rate=optimizer_info["learning_rate_schedule"](new_state.step),
             gradient_norm=global_norm(grads),
-            param_norm=global_norm(train_state.params),
+            param_norm=global_norm(new_state.params),
         )
-        return train_state, rng_generator(), metrics
-    ############################################################
-    
+        return new_state, rng_generator(), metrics
 
     def eval_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
@@ -181,7 +233,7 @@ def main(argv):
     train_state_shapes = jax.eval_shape(init_fn, next_rng())
     # print("train_state_shapes:", train_state_shapes)
     train_state_partition = match_partition_rules(
-        GemmaConfig.get_partition_rules(), train_state_shapes
+        GemmaProConfig.get_partition_rules(), train_state_shapes
     )
 
     shard_fns, gather_fns = make_shard_and_gather_fns(
@@ -234,7 +286,7 @@ def main(argv):
             milestone=milestone,
         )
 
-    mesh = GemmaConfig.get_jax_mesh(FLAGS.mesh_dim)
+    mesh = GemmaProConfig.get_jax_mesh(FLAGS.mesh_dim)
     print("Setup Mesh with:", mesh.shape, mesh.size)
     with mesh:
         train_state, restored_params = None, None
@@ -293,7 +345,6 @@ def main(argv):
                 save_checkpoint(train_state, milestone=True)
             elif FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
                 save_checkpoint(train_state)
-
 
         if FLAGS.save_model_freq > 0:
             save_checkpoint(train_state)

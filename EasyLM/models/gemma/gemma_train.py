@@ -4,7 +4,6 @@ from functools import partial
 from tqdm import tqdm, trange
 import numpy as np
 import mlxu
-import optax
 
 import jax
 import jax.numpy as jnp
@@ -70,7 +69,7 @@ def main(argv):
     set_random_seed(FLAGS.seed)
 
     # tokenizer = GemmaConfig.get_tokenizer(FLAGS.tokenizer)
-    tokenizer = AutoTokenizer.from_pretrained("gemmathon/gemma-2b-pro")
+    tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
     dataset = DatasetFactory.load_dataset(FLAGS.train_dataset, tokenizer)
     if FLAGS.load_dataset_state != "":
         dataset.load_state_dict(mlxu.load_pickle(FLAGS.load_dataset_state))
@@ -87,7 +86,7 @@ def main(argv):
     #     gemma_config = GemmaConfig.load_config(FLAGS.load_gemma_config)
     # else:
     #     gemma_config = GemmaConfig(**FLAGS.gemma)
-    gemma_config = GemmaConfig.from_pretrained("gemmathon/gemma-2b-pro")
+    gemma_config = GemmaConfig.from_pretrained("google/gemma-2b")
 
     # if FLAGS.update_gemma_config != "":
     #     gemma_config.update(dict(eval(FLAGS.update_gemma_config)))
@@ -100,7 +99,7 @@ def main(argv):
     # )
     # if gemma_config.vocab_size < dataset.vocab_size:
     #     gemma_config.update(dict(vocab_size=dataset.vocab_size))
-    
+
     model = FlaxGemmaForCausalLMModule(
         gemma_config, dtype=get_float_dtype_by_name(FLAGS.dtype)
     )
@@ -111,8 +110,6 @@ def main(argv):
     )
 
     def create_trainstate_from_params(params):
-        # transformation
-        # condition
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
     def init_fn(rng):
@@ -125,12 +122,10 @@ def main(argv):
         )
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
-    ############################################################
-    def train_step(train_state,rng, batch):
+    def train_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(("dp", "fsdp")))
 
-        print(train_state.params['params']['model']['layers'].keys())
         def loss_and_accuracy(params):
             logits = model.apply(
                 params,
@@ -141,13 +136,9 @@ def main(argv):
             return cross_entropy_loss_and_accuracy(
                 logits, batch["target_tokens"], batch["loss_masks"]
             )
-        
-        
-        # loss , gradient, metrics
+
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-        #print("grads",grads)
-
         train_state = train_state.apply_gradients(grads=grads)
         metrics = dict(
             loss=loss,
@@ -157,8 +148,6 @@ def main(argv):
             param_norm=global_norm(train_state.params),
         )
         return train_state, rng_generator(), metrics
-    ############################################################
-    
 
     def eval_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
@@ -293,7 +282,6 @@ def main(argv):
                 save_checkpoint(train_state, milestone=True)
             elif FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
                 save_checkpoint(train_state)
-
 
         if FLAGS.save_model_freq > 0:
             save_checkpoint(train_state)

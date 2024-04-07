@@ -32,8 +32,8 @@ from EasyLM.jax_utils import (
     make_shard_and_gather_fns,
     with_sharding_constraint,
 )
-from EasyLM.models.gemmapro_24.gemmapro_model import FlaxGemmaForCausalLMModule
-from EasyLM.models.gemmapro_24.configuration_gemmapro import GemmaProConfig
+from EasyLM.models.gemmapro.gemmapro_model import FlaxGemmaForCausalLMModule
+from EasyLM.models.gemmapro.configuration_gemmapro import GemmaProConfig
 
 from transformers import AutoTokenizer
 
@@ -90,7 +90,7 @@ def main(argv):
     #     gemma_config = GemmaConfig.load_config(FLAGS.load_gemma_config)
     # else:
     #     gemma_config = GemmaConfig(**FLAGS.gemma)
-    gemma_config = GemmaProConfig.from_pretrained("gemmathon/gemma-2b-pro-layer24")
+    gemma_config = GemmaProConfig.from_pretrained("gemmathon/gemma-2b-pro")
 
     # if FLAGS.update_gemma_config != "":
     #     gemma_config.update(dict(eval(FLAGS.update_gemma_config)))
@@ -120,7 +120,7 @@ def main(argv):
             mask (frozen_dict): `True` for non-frozen parameters, `False` for frozen parameters (i.e. the feature encoder).
         """
         flat_params = traverse_util.flatten_dict(params)
-        flat_mask = {path: ('3' in path or '7' in path or '11' in path or '15' in path or '19' in path or '23' in path) for path in flat_params}
+        flat_mask = {path: ('20' in path or '6' in path or '13' in path) for path in flat_params}
         mask = traverse_util.unflatten_dict(flat_mask)
         return freeze(mask)
     

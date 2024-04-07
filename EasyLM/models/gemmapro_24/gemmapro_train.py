@@ -32,8 +32,8 @@ from EasyLM.jax_utils import (
     make_shard_and_gather_fns,
     with_sharding_constraint,
 )
-from EasyLM.models.gemmapro.gemmapro_model import FlaxGemmaForCausalLMModule
-from EasyLM.models.gemmapro.configuration_gemmapro import GemmaProConfig
+from EasyLM.models.gemma.gemmapro_model import FlaxGemmaForCausalLMModule
+from EasyLM.models.gemma.configuration_gemmapro import GemmaProConfig
 
 from transformers import AutoTokenizer
 

@@ -247,7 +247,7 @@ class FlaxGemmaRMSNorm(nn.Module):
 
 #     return xq_out.astype(dtype), xk_out.astype(dtype)
 
-
+# query and key positional encoding
 class FlaxGemmaRotaryEmbedding(nn.Module):
     config: GemmaProConfig
     dtype: jnp.dtype = jnp.float32
@@ -324,6 +324,7 @@ class FlaxGemmaAttention(nn.Module):
         )
 
     def _merge_heads(self, hidden_states):
+        print(hidden_states.shape[:2])
         return hidden_states.reshape(
             hidden_states.shape[:2] + (self.num_heads * self.head_dim,)
         )
@@ -391,6 +392,7 @@ class FlaxGemmaAttention(nn.Module):
 
         # print("Apply split heads")
         query = self._split_heads(query, self.num_heads)
+        # MQA and GQA are defined by num key value heads 
         key = self._split_heads(key, self.num_key_value_heads)
         value = self._split_heads(value, self.num_key_value_heads)
         # print("query", query.shape)
@@ -477,8 +479,9 @@ class FlaxGemmaAttention(nn.Module):
         attn_weights = with_sharding_constraint(
             attn_weights, PS(("dp", "fsdp"), "mp", None, None)
         )
-
+        # attention probability * value
         attn_output = jnp.einsum("...hqk,...khd->...qhd", attn_weights, value)
+
         attn_output = self._merge_heads(attn_output)
         attn_output = self.o_proj(attn_output)
 
@@ -501,7 +504,6 @@ class FlaxGemmaMLP(nn.Module):
 
         kernel_init = jax.nn.initializers.normal(self.config.initializer_range)
         self.act = ACT2FN[self.config.hidden_act]
-
         self.gate_proj = nn.Dense(
             inner_dim, use_bias=False, dtype=self.dtype, kernel_init=kernel_init
         )
@@ -513,6 +515,8 @@ class FlaxGemmaMLP(nn.Module):
         )
 
     def __call__(self, hidden_states):
+        print(self.gate_proj,"---------------------------------------------------------")
+        print("---------------------------------------------------------")
         up_proj_states = self.up_proj(hidden_states)
         gate_states = self.act(self.gate_proj(hidden_states))
 
@@ -526,6 +530,8 @@ class FlaxGemmaDecoderLayer(nn.Module):
     dtype: jnp.dtype = jnp.float32
 
     def setup(self):
+        config = self.config
+        self.num_key_value_heads = config.num_key_value_heads
         self.input_layernorm = FlaxGemmaRMSNorm(self.config, dtype=self.dtype)
         self.self_attn = FlaxGemmaAttention(self.config, dtype=self.dtype)
         self.post_attention_layernorm = FlaxGemmaRMSNorm(self.config, dtype=self.dtype)
@@ -558,7 +564,15 @@ class FlaxGemmaDecoderLayer(nn.Module):
 
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
+        base_mlp_params = 0 
+        # base model mlp weight
+        
+        
+        # multi head mlp
         hidden_states = self.mlp(hidden_states)
+        # base params connection
+        hidden_states = base_mlp_params + hidden_states
+
 
         hidden_states = with_sharding_constraint(
             hidden_states, PS(("dp", "fsdp"), None, "mp")
@@ -914,6 +928,8 @@ class FlaxGemmaForCausalLMModule(nn.Module):
         )
 
         hidden_states = outputs[0]
+        print("FlaxGemmaForCausalLMModule hidden state" , hidden_states)
+
         if self.config.tie_word_embeddings:
             shared_kernel = self.model.variables["params"]["embed_tokens"][
                 "embedding"

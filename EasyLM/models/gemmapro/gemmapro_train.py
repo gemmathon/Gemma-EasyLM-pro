@@ -314,7 +314,9 @@ def main(argv):
         sharded_rng = next_rng()
 
         step_counter = trange(start_step, FLAGS.total_steps, ncols=0)
-
+        
+        print("train_step" , train_state , "==========================================")
+        print("========================================================================================")
         for step, (batch, dataset_metrics) in zip(step_counter, dataset):
             train_state, sharded_rng, metrics = sharded_train_step(
                 train_state, sharded_rng, batch

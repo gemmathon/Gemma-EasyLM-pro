@@ -513,6 +513,7 @@ class FlaxGemmaMLP(nn.Module):
         )
 
     def __call__(self, hidden_states):
+        print(self.gate_proj,"---------------------------------------------------------")
         up_proj_states = self.up_proj(hidden_states)
         gate_states = self.act(self.gate_proj(hidden_states))
 

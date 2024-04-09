@@ -47,7 +47,7 @@ from EasyLM.jax_utils import (
 logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "GemmaProConfig"
-_CHECKPOINT_FOR_DOC = "gemmathon/gemma-2b-pro"
+_CHECKPOINT_FOR_DOC = "gemmathon/gemma-pro-3.1b-ko-v0.5"
 _REAL_CHECKPOINT_FOR_DOC = "openlm-research/open_llama_3b_v2"
 
 GEMMA_START_DOCSTRING = r"""

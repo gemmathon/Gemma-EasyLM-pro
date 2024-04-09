@@ -37,7 +37,7 @@ python -m EasyLM.models.gemmapro_24.gemmapro_train \
 --save_milestone_freq=80889 \
 --train_dataset.type='huggingface' \
 --train_dataset.text_processor.fields='text' \
---train_dataset.huggingface_dataset.path='gemmathon/merged-pb-kw-nw' \
+--train_dataset.huggingface_dataset.path='gemmathon/korean_textbooks_merged' \
 --train_dataset.huggingface_dataset.name='default' \
 --train_dataset.huggingface_dataset.seq_length=8192 \
 --train_dataset.huggingface_dataset.batch_size=2 \

@@ -90,7 +90,7 @@ def main(argv):
     #     gemma_config = GemmaConfig.load_config(FLAGS.load_gemma_config)
     # else:
     #     gemma_config = GemmaConfig(**FLAGS.gemma)
-    gemma_config = GemmaProConfig.from_pretrained("gemmathon/gemma-2b-pro-layer24")
+    gemma_config = GemmaProConfig.from_pretrained("gemmathon/gemma-pro-3.1b-ko-v0.5")
 
     # if FLAGS.update_gemma_config != "":
     #     gemma_config.update(dict(eval(FLAGS.update_gemma_config)))
